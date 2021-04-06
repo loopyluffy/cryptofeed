@@ -33,45 +33,59 @@ class KafkaCallback:
 
     async def write(self, feed: str, symbol: str, timestamp: float, receipt_timestamp: float, data: dict):
         await self.__connect()
-        topic = f"{self.key}-{feed}-{symbol}"
+        # topic = f"{self.key}-{feed}-{symbol}"
+        # define new topic convention @logan
+        # topic keywords lowercase only @weaver
+        topic =  f"{self.key}norm-live-{feed}-{self.default_channel}-{symbol}".lower()
         await self.producer.send_and_wait(topic, json.dumps(data).encode('utf-8'))
 
 
 class TradeKafka(KafkaCallback, BackendTradeCallback):
     default_key = 'trades'
+    # for key to use name convention, data_type needed... @logan
+    default_channel = 'trades'
 
 
 class FundingKafka(KafkaCallback, BackendFundingCallback):
     default_key = 'funding'
+    default_channel = 'funding'
 
 
 class BookKafka(KafkaCallback, BackendBookCallback):
     default_key = 'book'
+    default_channel = 'book'
 
 
 class BookDeltaKafka(KafkaCallback, BackendBookDeltaCallback):
     default_key = 'book'
+    default_channel = 'book'
 
 
 class TickerKafka(KafkaCallback, BackendTickerCallback):
     default_key = 'ticker'
+    default_channel = 'ticker'
 
 
 class OpenInterestKafka(KafkaCallback, BackendOpenInterestCallback):
     default_key = 'open_interest'
+    default_channel = 'open_interest'
 
 
 class LiquidationsKafka(KafkaCallback, BackendLiquidationsCallback):
     default_key = 'liquidations'
+    default_channel = 'liquidations'
 
 
 class MarketInfoKafka(KafkaCallback, BackendMarketInfoCallback):
     default_key = 'market_info'
+    default_channel = 'market_info'
 
 
 class TransactionsKafka(KafkaCallback, BackendTransactionsCallback):
     default_key = 'transactions'
+    default_channel = 'transactions'
 
 
 class CandlesKafka(KafkaCallback, BackendCandlesCallback):
     default_key = 'candles'
+    default_channel = 'candles'
