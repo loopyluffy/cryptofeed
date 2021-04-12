@@ -89,6 +89,9 @@ celerybeat-schedule
 venv/
 ENV/
 
+# private
+sandbox/
+
 # Spyder project settings
 .spyderproject
 .spyproject

@@ -84,6 +84,10 @@ PENDING = 'pending'
 FILLED = 'filled'
 PARTIAL = 'partial'
 CANCELLED = 'cancelled'
+# added by @logan
+EXPIRED = 'expired'
+REJECTED = 'rejected'
+
 
 
 """

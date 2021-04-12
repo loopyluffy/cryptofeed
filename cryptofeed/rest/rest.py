@@ -8,7 +8,7 @@ import logging
 
 from cryptofeed.config import Config
 from cryptofeed.log import get_logger
-from cryptofeed.rest.binance_futures import BinanceFutures, BinanceDelivery
+from cryptofeed.rest.luffy_binance_futures import BinanceFutures, BinanceDelivery
 from cryptofeed.rest.bitfinex import Bitfinex
 from cryptofeed.rest.bitmex import Bitmex
 from cryptofeed.rest.coinbase import Coinbase
