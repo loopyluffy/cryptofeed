@@ -4,9 +4,9 @@ Copyright (C) 2017-2021  Bryant Moscon - bmoscon@gmail.com
 Please see the LICENSE file for the terms and conditions
 associated with this software.
 '''
-from cryptofeed.defines import BITCOINCOM, BITFINEX, BITSTAMP, BLOCKCHAIN, COINBASE, GEMINI, HITBTC, POLONIEX
+from cryptofeed.defines import BITCOINCOM, BITFINEX, BITSTAMP, BLOCKCHAIN, COINBASE, GEMINI, HITBTC, POLONIEX, BINANCE_DELIVERY
 from cryptofeed.symbols import (bitcoincom_symbols, bitfinex_symbols, bitstamp_symbols, blockchain_symbols,
-                                coinbase_symbols, gemini_symbols, hitbtc_symbols, poloniex_symbols)
+                                coinbase_symbols, gemini_symbols, hitbtc_symbols, poloniex_symbols, binance_delivery_symbols)
 from cryptofeed.standards import load_exchange_symbol_mapping, symbol_exchange_to_std, symbol_std_to_exchange
 
 
@@ -63,3 +63,12 @@ def test_blockchain_symbol_conversions():
     load_exchange_symbol_mapping(BLOCKCHAIN)
     for _, symbol in blockchain_symbols().items():
         assert symbol_exchange_to_std(symbol) == symbol_std_to_exchange(symbol, BLOCKCHAIN)
+
+
+# test by @logan
+def test_binance_delivery_symbol_conversions():
+    load_exchange_symbol_mapping(BINANCE_DELIVERY)
+    for normalized, symbol in binance_delivery_symbols().items():
+        std = symbol_exchange_to_std(symbol)
+        assert symbol == symbol_std_to_exchange(std, BINANCE_DELIVERY)
+        assert normalized == std

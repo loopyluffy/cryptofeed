@@ -15,8 +15,9 @@ import pandas as pd
 import requests
 from yapic import json
 
-from cryptofeed.defines import BINANCE_FUTURES, BINANCE_DELIVERY, BID, ASK, BUY, SELL, CANCELLED, COINBASE, FILLED, LIMIT, MARKET, OPEN, PARTIAL, PENDING, REJECTED, EXPIRED
+from cryptofeed.defines import BINANCE_FUTURES, BINANCE_DELIVERY, BID, ASK, BUY, SELL, CANCELLED, COINBASE, FILLED, LIMIT, MARKET, OPEN, PARTIAL, PENDING, REJECTED, EXPIRED, ORDERS
 from cryptofeed.rest.api import API, request_retry
+from cryptofeed.rest.luffy_api_feed import APIFeed
 from cryptofeed.standards import symbol_exchange_to_std, symbol_std_to_exchange, timestamp_normalize
 
 REQUEST_LIMIT = 1000
@@ -25,7 +26,7 @@ LOG = logging.getLogger('rest')
 
 
 # binance common class for signature and request... @logan
-class Binance(API):
+class Binance(APIFeed):
     def _get(self, endpoint, retry, retry_wait):
         @request_retry(self.ID, retry, retry_wait)
         def helper():
@@ -133,6 +134,26 @@ class Binance(API):
             'order_status': status
         }
 
+    # message handler
+    async def message_handler(self, **channels):
+        msg = json.loads(msg, parse_float=Decimal)
+
+        # Combined stream events are wrapped as follows: {"stream":"<streamName>","data":<rawPayload>}
+        # streamName is of format <symbol>@<channel>
+        # pair, _ = msg['stream'].split('@', 1)
+        # msg = msg['data']
+        # pair = pair.upper()
+
+        for channel, symbols in channels.items():
+            if channel == ORDERS:
+                for symbol in symbols:
+                    # msg = self.orders(symbol=symbol)
+                    # self.callbacks[ORDERS]
+                    # await self._feed_orders(msg, timestamp)
+                    await self._feed_orders(symbol)
+            else:
+                LOG.warning("%s: Unexpected channel received: %s", self.ID, channel)
+
 
 class BinanceDelivery(Binance):
     ID = BINANCE_DELIVERY
@@ -218,6 +239,7 @@ class BinanceDelivery(Binance):
 
     def orders(self, symbol: str):
         endpoint = "/allOrders"
+        symbol = symbol_std_to_exchange(symbol, self.ID)
         data = self._request("GET", endpoint, auth=True, body={'symbol': symbol})
         data = json.loads(data.text, parse_float=Decimal)
         return [Binance._order_status(order) for order in data]
@@ -227,6 +249,55 @@ class BinanceDelivery(Binance):
         order = self._request("GET", endpoint, auth=True)
         order = json.loads(order.text, parse_float=Decimal)
         return Coinbase._order_status(order)
+
+    # feed handelers @logan
+    # async def _feed_orders(self, msg: dict, timestamp: float):
+    async def _feed_orders(self, symbol: str):
+        """
+        order msg example
+
+        {
+            "orderId": 6000942672,
+            "symbol": "BTCUSD_PERP",
+            "pair": "BTCUSD",
+            "status": "FILLED",
+            "clientOrderId": "web_8kNuOXyzjAEpSsy9TTbB",
+            "price": "0",
+            "avgPrice": "45673.2",
+            "origQty": "10",
+            "executedQty": "10",
+            "cumBase": "0.02189467",
+            "timeInForce": "GTC",
+            "type": "MARKET",
+            "reduceOnly": false,
+            "closePosition": false,
+            "side": "BUY",
+            "positionSide": "BOTH",
+            "stopPrice": "0",
+            "workingType": "CONTRACT_PRICE",
+            "priceProtect": false,
+            "origType": "MARKET",
+            "time": 1614328188507,
+            "updateTime": 1614328192285
+        }
+        """
+
+        msg = self.orders(symbol=symbol)
+
+        for order in msg:
+            await self.callback(ORDERS, feed=self.ID,
+                                symbol=symbol_exchange_to_std(data['symbol']),
+                                order_id=data['orderId'],
+                                order_alias=data['clientOrderId'],
+                                status=data['status'], 
+                                side=BUY if data['side'] == 'BUY' else SELL,
+                                price=Decimal(data['avgPrice']),
+                                qty=data['origQty'],
+                                exec_qty=Decimal(data['leavesQty']),
+                                type=data['origType'],
+                                time_in_force=data['timeInForce'],
+                                timestamp=data['updateTime'])
+                                # receipt_timestamp=timestamp)
 
 
 class BinanceFutures(Binance):

@@ -87,6 +87,14 @@ def test_get_available_balances():
     assert len(balances) > 0
 
 
+# test by @logan
+@pytest.mark.skipif(not sandbox.config.key_id or not sandbox.config.key_secret, reason="No api key provided")
+def test_get_all_orders():
+    orders = sandbox.orders(symbol='BTC-USD_PERP')
+   
+    assert len(orders) > 0
+
+
 @pytest.mark.skipif(not sandbox.config.key_id or not sandbox.config.key_secret, reason="No api key provided")
 def test_order_status():
     order_resp = sandbox.place_order(
@@ -112,14 +120,6 @@ def test_get_orders():
 
     orders = sandbox.orders()
     assert len(orders) == 0
-
-
-# test by @logan
-@pytest.mark.skipif(not sandbox.config.key_id or not sandbox.config.key_secret, reason="No api key provided")
-def test_get_all_orders():
-    orders = sandbox.orders(symbol='BTCUSD_PERP')
-   
-    assert len(orders) > 0
 
 
 # @pytest.mark.skipif(sandbox.key_id is None or sandbox.key_secret is None, reason="No api key provided")

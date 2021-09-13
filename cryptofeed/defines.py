@@ -63,6 +63,8 @@ CANDLES = 'candles'
 
 # Account Data / Authenticated Channels
 ORDER_INFO = 'order_info'
+# added by @logan
+ORDERS = 'orders'
 
 
 BUY = 'buy'
