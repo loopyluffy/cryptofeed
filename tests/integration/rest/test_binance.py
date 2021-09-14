@@ -1,206 +1,126 @@
-import pytest
+'''
+Copyright (C) 2017-2021  Bryant Moscon - bmoscon@gmail.com
+
+Please see the LICENSE file for the terms and conditions
+associated with this software.
+'''
+import asyncio
 from decimal import Decimal
-import pandas as pd
 
-from cryptofeed.defines import BID, ASK
-from cryptofeed.rest import Rest
-
-import pathlib
-
-CFG = str(pathlib.Path().absolute()) + "/sandbox/rest_config.yaml"
-
-public = Rest().binance_delivery
-sandbox = Rest(config=CFG).binance_delivery
+from cryptofeed.defines import BINANCE, BINANCE_DELIVERY, BINANCE_FUTURES, BUY, SELL
+from cryptofeed.exchanges import BinanceFutures, BinanceDelivery, Binance
+from cryptofeed.types import Candle
 
 
-def test_ticker():
-    ticker = public.ticker('BTC-USD')
-
-    assert BID in ticker
-    assert ASK in ticker
+b = Binance()
+bd = BinanceDelivery()
+bf = BinanceFutures()
 
 
-def test_order_book():
-    current_order_book = public.l2_book('BTC-USD')
-
-    assert BID in current_order_book
-    assert len(current_order_book[BID]) > 0
-
-
-def test_trade_history():
-    trade_history = list(public.trades('BTC-USD_PERP'))
-    assert len(trade_history) > 0
+def teardown_module(module):
+    asyncio.get_event_loop().run_until_complete(b.shutdown())
+    asyncio.get_event_loop().run_until_complete(bf.shutdown())
+    asyncio.get_event_loop().run_until_complete(bd.shutdown())
 
 
-def test_trade_history_specific_time():
-    expected = {'timestamp': 1550062756.000744, 
-                'symbol': 'BTC-USD', 
-                'id': 59158401, 
-                'feed': 'COINBASE', 
-                'side': 'buy', 
-                'amount': Decimal('0.00514473'), 
-                'price': Decimal('3580.07')}
-    ret = []
-    for data in public.trades('BTC-USD', start='2019-02-13 12:59:10', end='2019-02-13 12:59:17'):
-        ret.extend(data)
-    assert len(ret) == 1
-    assert ret[0] == expected
+class TestBinanceRest:
+    def test_trade(self):
+        ret = []
+        for data in b.trades_sync('BTC-USDT'):
+            ret.extend(data)
+
+        assert len(ret) == 1000
+        assert ret[0]['feed'] == BINANCE
+        assert ret[0]['symbol'] == 'BTC-USDT'
+        assert isinstance(ret[0]['price'], Decimal)
+        assert isinstance(ret[0]['amount'], Decimal)
+        assert isinstance(ret[0]['timestamp'], float)
 
 
-def test_candle_history():
-    candle_history = list(public.candles('BTC-USD'))
-    assert len(candle_history) > 0
+    def test_trades(self):
+        expected = {'timestamp': 1577836800.594,
+                    'symbol': 'BTC-USDT',
+                    'id': 202458543,
+                    'feed': BINANCE,
+                    'side': BUY,
+                    'amount': Decimal('0.00150000'),
+                    'price': Decimal('7195.24000000')}
+        ret = []
+        for data in b.trades_sync('BTC-USDT', start='2020-01-01 00:00:00', end='2020-01-01 00:00:01'):
+            ret.extend(data)
+
+        assert len(ret) == 3
+        assert ret[0] == expected
+        assert ret[0]['timestamp'] < ret[-1]['timestamp']
+    
+    def test_candles(self):
+        expected = Candle(
+            b.id,
+            'BTC-USDT',
+            1577836800.0,
+            1577836859.999,
+            '1m',
+            493,
+            Decimal('7195.24'),
+            Decimal('7186.68'),
+            Decimal('7196.25'),
+            Decimal('7183.14'),
+            Decimal('51.642812'),
+            True,
+            1577836859.999
+        )
+        ret = []
+        for data in b.candles_sync('BTC-USDT', start='2020-01-01 00:00:00', end='2020-01-01 00:00:59'):
+            ret.extend(data)
+
+        assert len(ret) == 1
+        assert ret[0] == expected    
+
+    def test_bf_trade(self):
+        expected = {'timestamp': 1577836801.481,
+                    'symbol': 'BTC-USDT-PERP',
+                    'id': 18374167,
+                    'feed': BINANCE_FUTURES,
+                    'side': BUY,
+                    'amount': Decimal('.03'),
+                    'price': Decimal('7189.43')}
+
+        ret = []
+        for data in bf.trades_sync('BTC-USDT-PERP', start='2020-01-01 00:00:00', end='2020-01-01 0:00:02'):
+            ret.extend(data)
+
+        assert len(ret) == 3
+        assert ret[0] == expected
 
 
-def test_candle_history_specific_time():
-    expected = [
-        {
-            'symbol': 'BTC-USD', 'feed': 'COINBASE', 
-            'timestamp': 1578733200,
-            'low': Decimal('8054.64'), 
-            'high': Decimal('8122'), 
-            'open': Decimal('8054.66'),
-            'close': Decimal('8109.53'), 
-            'volume': Decimal('78.91111363')}, 
-        {
-            'symbol': 'BTC-USD', 'feed': 'COINBASE', 
-            'timestamp': 1578736800, 
-            'low': Decimal('8045.67'), 
-            'high': Decimal('8110.95'), 
-            'open': Decimal('8110.95'), 
-            'close': Decimal('8050.94'), 
-            'volume': Decimal('71.11516828')
-        }
-    ]
-    s = pd.Timestamp('2020-01-11 04:00:00-0500', tz='US/Eastern')
-    e = pd.Timestamp('2020-01-11 05:00:00-0500', tz='US/Eastern')
-    granularity = 3600
-    candle_history = list(public.candles('BTC-USD', start=s, end=e, granularity=granularity))[0]
-    assert len(candle_history) == 2
-    assert candle_history == expected
+    def test_bf_trades(self):
+        ret = []
+        for data in bf.trades_sync('BTC-USDT-PERP', start='2020-01-01 00:00:00', end='2020-01-01 1:00:00'):
+            ret.extend(data)
+
+        assert len(ret) == 2588
 
 
-@pytest.mark.skipif(not sandbox.config.key_id or not sandbox.config.key_secret, reason="No api key provided")
-def test_get_available_balances():
-    balances = sandbox.balances()
+    def test_bd_trade(self):
+        expected = {'timestamp': 1609459200.567,
+                    'symbol': 'BTC-USD-PERP',
+                    'id': 8411339,
+                    'feed': BINANCE_DELIVERY,
+                    'side': SELL,
+                    'amount': Decimal('13'),
+                    'price': Decimal('28950.4')}
 
-    assert len(balances) > 0
+        ret = []
+        for data in bd.trades_sync('BTC-USD-PERP', start='2021-01-01 00:00:00', end='2021-01-01 0:00:01'):
+            ret.extend(data)
 
-
-# test by @logan
-@pytest.mark.skipif(not sandbox.config.key_id or not sandbox.config.key_secret, reason="No api key provided")
-def test_get_all_orders():
-    orders = sandbox.orders(symbol='BTC-USD_PERP')
-   
-    assert len(orders) > 0
-
-
-@pytest.mark.skipif(not sandbox.config.key_id or not sandbox.config.key_secret, reason="No api key provided")
-def test_order_status():
-    order_resp = sandbox.place_order(
-        symbol='BTC-USD',
-        side=BUY,
-        order_type=LIMIT,
-        amount='1.0',
-        price='1.13',
-        client_order_id='1'
-    )
-    status = sandbox.order_status(order_resp['order_id'])
-    sandbox.cancel_order(order_resp['order_id'])
-
-    assert status['symbol'] == 'BTC-USD'
-    assert status['side'] == BUY
+        assert len(ret) == 2
+        assert ret[0] == expected
 
 
-@pytest.mark.skipif(not sandbox.config.key_id or not sandbox.config.key_secret, reason="No api key provided")
-def test_get_orders():
-    orders = sandbox.orders()
-    for order in orders:
-        sandbox.cancel_order(order['order_id'])
+    def test_bd_trades(self):
+        ret = []
+        for data in bd.trades_sync('BTC-USD-PERP', start='2021-01-01 00:00:00', end='2021-01-01 1:00:00'):
+            ret.extend(data)
 
-    orders = sandbox.orders()
-    assert len(orders) == 0
-
-
-# @pytest.mark.skipif(sandbox.key_id is None or sandbox.key_secret is None, reason="No api key provided")
-# def test_heartbeat():
-#     result = sandbox.heartbeat()
-#     assert result['result'] == 'ok'
-# 
-# 
-# @pytest.mark.skipif(sandbox.key_id is None or sandbox.key_secret is None, reason="No api key provided")
-# def test_place_order_and_cancel():
-#     order_resp = sandbox.place_order(
-#         symbol='btcusd',
-#         side='buy',
-#         order_type='LIMIT',
-#         amount='1.0',
-#         price='622.13',
-#         client_order_id='1'
-#     )
-#     assert 'order_id' in order_resp
-#     cancel_resp = sandbox.cancel_order({'order_id': order_resp['order_id']})
-#     assert 'order_id' in cancel_resp
-
-
-# @pytest.mark.skipif(sandbox.key_id is None or sandbox.key_secret is None, reason="No api key provided")
-# def test_cancel_all_session_orders():
-#     cancel_all = sandbox.cancel_all_session_orders()
-#     assert cancel_all['result'] == 'ok'
-
-
-# @pytest.mark.skipif(sandbox.key_id is None or sandbox.key_secret is None, reason="No api key provided")
-# def test_cancel_all_active_orders():
-#     cancel_all = sandbox.cancel_all_active_orders()
-#     assert cancel_all['result'] == 'ok'
-
-
-# @pytest.mark.skipif(sandbox.key_id is None or sandbox.key_secret is None, reason="No api key provided")
-# def test_order_status():
-#     order_resp = sandbox.place_order(
-#         symbol='btcusd',
-#         side='buy',
-#         type='LIMIT',
-#         amount='1.0',
-#         price='1.13',
-#         client_order_id='1'
-#     )
-#     status = sandbox.order_status({'order_id': order_resp['order_id']})
-#     sandbox.cancel_all_active_orders()
-
-#     assert status['symbol'] == 'btcusd'
-#     assert status['side'] == 'buy'
-
-
-# @pytest.mark.skipif(sandbox.key_id is None or sandbox.key_secret is None, reason="No api key provided")
-# def test_get_active_orders():
-#     active = sandbox.get_active_orders()
-
-#     assert len(active) == 0
-
-
-# @pytest.mark.skipif(sandbox.key_id is None or sandbox.key_secret is None, reason="No api key provided")
-# def test_get_past_trades():
-#     trades = sandbox.get_past_trades({'symbol': 'btcusd'})
-#     assert len(trades) == 0
-
-
-# @pytest.mark.skipif(sandbox.key_id is None or sandbox.key_secret is None, reason="No api key provided")
-# def test_get_notional_volume():
-#     volume = sandbox.get_notional_volume()
-
-#     assert volume['maker_fee_bps'] == 25
-
-
-# @pytest.mark.skipif(sandbox.key_id is None or sandbox.key_secret is None, reason="No api key provided")
-# def test_get_trade_volume():
-#     volume = sandbox.get_trade_volume()
-
-#     assert len(volume) == 1
-
-
-# @pytest.mark.skipif(sandbox.key_id is None or sandbox.key_secret is None, reason="No api key provided")
-# def test_get_available_balances():
-#     balances = sandbox.get_available_balances()
-
-#     assert len(balances) > 0
+        assert len(ret) == 6216
