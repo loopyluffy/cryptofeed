@@ -5,7 +5,6 @@ Please see the LICENSE file for the terms and conditions
 associated with this software.
 '''
 from collections import defaultdict
-from cryptofeed.exchange import Exchange
 from functools import partial
 import logging
 from typing import Tuple, Callable, Union, List
@@ -15,9 +14,9 @@ from aiohttp.typedefs import StrOrURL
 from cryptofeed.callback import Callback
 from cryptofeed.connection import AsyncConnection, HTTPAsyncConn, WSAsyncConn
 from cryptofeed.connection_handler import ConnectionHandler
-from cryptofeed.defines import (ASK, BALANCES, BID, CANDLES, FUNDING, INDEX, L2_BOOK, L3_BOOK, LIQUIDATIONS,
-                                OPEN_INTEREST, ORDER_INFO, TICKER, TRADES, FILLS, POSITIONS, BALANCES)
+from cryptofeed.defines import BALANCES, CANDLES, FUNDING, INDEX, L2_BOOK, L3_BOOK, LIQUIDATIONS, OPEN_INTEREST, ORDER_INFO, TICKER, TRADES, FILLS
 from cryptofeed.exceptions import BidAskOverlapping
+from cryptofeed.exchange import Exchange
 from cryptofeed.types import OrderBook
 
 
@@ -128,9 +127,7 @@ class Feed(Exchange):
                           CANDLES: Callback(None),
                           ORDER_INFO: Callback(None),
                           FILLS: Callback(None),
-                          BALANCES: Callback(None),
-                          # positon test...@logan   
-                          POSITIONS: Callback(None)
+                          BALANCES: Callback(None)
                           }
 
         if callbacks:
@@ -174,7 +171,7 @@ class Feed(Exchange):
 
     async def book_callback(self, book_type: str, book: OrderBook, receipt_timestamp: float, timestamp=None, raw=None, sequence_number=None, checksum=None, delta=None):
         if self.cross_check:
-            self.check_bid_ask_overlapping(book)
+            self.check_bid_ask_overlapping(book.book)
 
         book.timestamp = timestamp
         book.raw = raw
@@ -184,9 +181,9 @@ class Feed(Exchange):
         await self.callback(book_type, book, receipt_timestamp)
 
     def check_bid_ask_overlapping(self, book):
-        bid, ask = book[BID], book[ASK]
+        bid, ask = book.bids, book.asks
         if len(bid) > 0 and len(ask) > 0:
-            best_bid, best_ask = bid.keys()[-1], ask.keys()[0]
+            best_bid, best_ask = bid.index(0)[0], ask.index(0)[0]
             if best_bid >= best_ask:
                 raise BidAskOverlapping(f"{self.id} - {book.symbol}: best bid {best_bid} >= best ask {best_ask}")
 

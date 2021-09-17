@@ -1,8 +1,19 @@
 ## Changelog
 
 ### 2.0.1
+ * Bugfix: BinanceDelivery and BinanceFutures WS compression
  * Bugfix: Upbit REST candles do not work when start/end are not specified
  * Bugfix: New version of websockets enforces RFC rules and non-compliant exchanges will fail to connect.
+ * Feature: Add support for candles on Bitfinex REST
+ * Bugfix: Book callback with cross_check option enabled causes an error 
+ * Bugfix: Kraken Candle timestamps strings instead of floats
+ * Bugfix: Coinbase book \_change handler passing wrong book type
+ * Bugfix: dYdX orderbooks contained prices levels of size 0
+ * Bugfix: FTX trade id for liquidations not correctly being converted to str
+ * Bugfix: L3 OrderBooks not being correctly converted when as_type was used with to_dict
+ * Feature: kwarg snapshots_only when true allow storage of full book updates only (no deltas)
+ * Bugfix: initial snapshot of Binance books did not have delta set to None
+ * Bugfix: RedisBook callback accessed key delta when it did not exist, causing crash
 
 ### 2.0.0 (2021-09-11)
  * Feature: Binance REST support

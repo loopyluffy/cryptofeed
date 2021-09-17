@@ -55,6 +55,10 @@ class BookKafka(KafkaCallback, BackendBookCallback):
     default_key = 'book'
     default_channel = 'book'
 
+    def __init__(self, *args, snapshots_only=False, **kwargs):
+        self.snapshots_only = snapshots_only
+        super().__init__(*args, **kwargs)
+
 
 class TickerKafka(KafkaCallback, BackendCallback):
     default_key = 'ticker'
