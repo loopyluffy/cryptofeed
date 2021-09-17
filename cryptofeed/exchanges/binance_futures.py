@@ -12,7 +12,7 @@ from typing import List, Tuple, Callable, Dict
 from yapic import json
 
 from cryptofeed.connection import AsyncConnection, HTTPPoll, HTTPConcurrentPoll
-from cryptofeed.defines import BINANCE_FUTURES, FUNDING, LIQUIDATIONS, OPEN_INTEREST
+from cryptofeed.defines import BINANCE_FUTURES, FUNDING, LIQUIDATIONS, OPEN_INTEREST, POSITIONS, BALANCES
 from cryptofeed.exchanges.binance import Binance
 from cryptofeed.exchanges.mixins.binance_rest import BinanceFuturesRestMixin
 from cryptofeed.types import OpenInterest
@@ -29,7 +29,10 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
         **Binance.websocket_channels,
         FUNDING: 'markPrice',
         OPEN_INTEREST: 'open_interest',
-        LIQUIDATIONS: 'forceOrder'
+        LIQUIDATIONS: 'forceOrder',
+
+        # authenticated channel test @logan
+        BALANCES: 'JEI6zo112RvYorpuhGZ16hhkoC7HkThoPqromIUwRlMGerraTERNmDmiowHrSbxA'
     }
 
     @classmethod
