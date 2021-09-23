@@ -32,7 +32,9 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
         LIQUIDATIONS: 'forceOrder',
 
         # authenticated channel test @logan
-        BALANCES: 'JEI6zo112RvYorpuhGZ16hhkoC7HkThoPqromIUwRlMGerraTERNmDmiowHrSbxA'
+        # deprecated for update of @mboscon
+        # BALANCES: 'JEI6zo112RvYorpuhGZ16hhkoC7HkThoPqromIUwRlMGerraTERNmDmiowHrSbxA'
+        # 'userData': 'userData'
     }
 
     @classmethod
@@ -95,6 +97,28 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
             await self.callback(OPEN_INTEREST, o, timestamp)
             self._open_interest_cache[pair] = oi
 
+    # ----------------------------------------------------------------------------------------
+    # start user data stream @logan
+    # deprecated for update of @mboscon
+    """
+    async def _start_user_data_stream(self):
+        from cryptofeed.defines import POST
+
+        data = await self._request(POST, 'listenKey', auth=True)
+        self.websocket_channels['userData'] = data['listenKey'] 
+        # return data['listenKey']
+
+    async def subscribe(self, conn: AsyncConnection):
+        await super().subscribe(conn)
+
+        if self.subscription is not None:
+            for channel in self.subscription:
+                # chan = self.std_channel_to_exchange(channel)
+                if channel == 'userData':
+                    await self._start_user_data_stream()    
+    """
+    # ----------------------------------------------------------------------------------------
+
     def connect(self) -> List[Tuple[AsyncConnection, Callable[[None], None], Callable[[str, float], None]]]:
         ret = []
         if self.address:
@@ -104,7 +128,33 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
             if chan == 'open_interest':
                 addrs = [f"{self.rest_endpoint}/openInterest?symbol={pair}" for pair in self.subscription[chan]]
                 ret.append((PollCls(addrs, self.id, delay=60.0, sleep=self.open_interest_interval, proxy=self.http_proxy), self.subscribe, self.message_handler, self.authenticate))
+
+        # ----------------------------------------------------------------------------------------
+        # connect another socket for user data stream... @logan
+        # deprecated for update of @mboscon
+        """
+        from cryptofeed.connection import WSAsyncConn # AsyncConnection, HTTPAsyncConn, 
+
+        if self.subscription is not None:
+            for channel in self.subscription:
+                # chan = self.std_channel_to_exchange(channel)
+                if channel == 'userData':
+                    # address = self.ws_endpoint + '/ws/rUzZ3D0gsNR8Yl5QbI1Opk2z8oXIjIHCoPoEgFYr7fI5VZievgsrYdoHOUAEoTqQ'
+                    # address = f"{self.ws_endpoint}/ws/JEI6zo112RvYorpuhGZ16hhkoC7HkThoPqromIUwRlMGerraTERNmDmiowHrSbxA"
+                    # task = create_task(self._start_user_data_stream())
+                    # data = await task
+                    address = self.ws_endpoint + '/ws/' + self.websocket_channels['userData']
+                    ret.append((WSAsyncConn(address, self.id, **self.ws_defaults), self.subscribe, self.message_handler, self.authenticate))
+        """
+        # ----------------------------------------------------------------------------------------
+
         return ret
+
+    # connect another socket for user data stream... @logan
+    # deprecated for update of @mboscon
+    # async def _user_data(self, msg: dict, timestamp: float):
+    #     await self.callback('userData', 'test', timestamp)
+
 
     async def message_handler(self, msg: str, conn: AsyncConnection, timestamp: float):
         msg = json.loads(msg, parse_float=Decimal)
@@ -115,6 +165,11 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
             if self.concurrent_http:
                 return create_task(coro)
             return await coro
+
+        # handle user data stream... @logan
+        # deprecated for update of @mboscon
+        # if msg.get('e') == 'ACCOUNT_CONFIG_UPDATE':
+        #     return await self._user_data(msg, timestamp)
 
         # Combined stream events are wrapped as follows: {"stream":"<streamName>","data":<rawPayload>}
         # streamName is of format <symbol>@<channel>
@@ -138,3 +193,6 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
             await self._candle(msg, timestamp)
         else:
             LOG.warning("%s: Unexpected message received: %s", self.id, msg)
+
+
+   

@@ -80,6 +80,7 @@ def main():
 
     # user data stream channel @logan
     # USER = "jzhJ53lZGnfvwZ0fnSARhZBnFkG12ScT7rPdRFYXGtIEzlgwvzbKsibMpk5njdBN"
+    USER_DATA = 'userData'
 
     # binance_futures = BinanceFutures(config=path_to_config)
     # print(binance_futures.balances_sync())
@@ -109,10 +110,14 @@ def main():
     #                            callbacks={L2_BOOK: abook, TRADES: trades, TICKER: ticker}))
     f.add_feed(BinanceFutures(config=path_to_config,
                               max_depth=3, symbols=['BTC-USDT-PERP'],
-                              channels=[TICKER, BALANCES],
-                              callbacks={TICKER: ticker, BALANCES: account}))
+                              channels=[USER_DATA],
+                              callbacks={USER_DATA: account}))
+                            #   channels=[TICKER, USER_DATA],
+                            #   callbacks={TICKER: ticker, USER_DATA: account}))
                             #   channels=[TICKER],
                             #   callbacks={TICKER: ticker}))
+                            # channels=[L2_BOOK, TRADES, TICKER],
+                            # callbacks={L2_BOOK: abook, TRADES: trades, TICKER: ticker}))
     f.run()
 
 

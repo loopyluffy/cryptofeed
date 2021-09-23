@@ -113,6 +113,11 @@ class Binance(Feed, BinanceRestMixin):
             if normalized_chan == OPEN_INTEREST:
                 continue
 
+            # to parse user data stream... @logan
+            # deprecated for update of @mboscon
+            # if normalized_chan == 'userData':
+            #     continue
+
             stream = chan
             if normalized_chan == CANDLES:
                 stream = f"{chan}{self.candle_interval}"
