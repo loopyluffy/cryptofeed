@@ -1,6 +1,6 @@
 ## Changelog
 
-### 2.0.1
+### 2.0.1 (2021-09-22)
  * Bugfix: BinanceDelivery and BinanceFutures WS compression
  * Bugfix: Upbit REST candles do not work when start/end are not specified
  * Bugfix: New version of websockets enforces RFC rules and non-compliant exchanges will fail to connect.
@@ -14,6 +14,16 @@
  * Feature: kwarg snapshots_only when true allow storage of full book updates only (no deltas)
  * Bugfix: initial snapshot of Binance books did not have delta set to None
  * Bugfix: RedisBook callback accessed key delta when it did not exist, causing crash
+ * Feature: Candle support for Bybit
+ * Bugfix: Fix L3 Book Deltas when use as_type kwarg in to_dict
+ * Bugfix: Use V3 endpoint for book snapshots in Binance and BinanceUS
+ * Bugfix: Coinbase level 3 book potential memory leak
+ * Feature: Perpetual support for Bitfinex
+ * Feature: Type checking in Cython code (disabled by default, enable in setup.py)
+ * Bugfix: Fix type issues in OKEx and Binance Futures - some numeric data being returned as string
+ * Bugfix: Fix symbol normalization in FTX and Huoni Swap
+ * Feature: Redis backend to choose sleep interval for writer
+ * Feature: snapshot_interval added to book backends
 
 ### 2.0.0 (2021-09-11)
  * Feature: Binance REST support
@@ -23,6 +33,7 @@
  * Feature: Remove pandas dependency
  * Breaking Change: Rewrite all rest endpoints to support sync and async versions of the endpoint.
  * Feature: Add dYdX REST endpoints
+ * Feature: Add Binance authentication for User Data Streams
  * Feature: Add support for Binance trading REST API
  * Bugfix: Fix typo by renaming rest_options to order_options
  * Bugfix: Use correct max depth for Binance (and its child classes).

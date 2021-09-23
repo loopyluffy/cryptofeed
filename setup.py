@@ -4,6 +4,7 @@ Copyright (C) 2017-2021  Bryant Moscon - bmoscon@gmail.com
 Please see the LICENSE file for the terms and conditions
 associated with this software.
 '''
+import os
 import sys
 
 from setuptools import setup
@@ -31,10 +32,14 @@ class Test(TestCommand):
         sys.exit(errno)
 
 
+# comment out line below to enable type checking in cython code (via assertions)
+os.environ['CFLAGS'] = '-DCYTHON_WITHOUT_ASSERTIONS'
+
+
 setup(
     name="cryptofeed",
     ext_modules=cythonize("cryptofeed/types.pyx", language_level=3),
-    version="2.0.1",
+    version="2.0.2",
     author="Bryant Moscon",
     author_email="bmoscon@gmail.com",
     description="Cryptocurrency Exchange Websocket Data Feed Handler",
