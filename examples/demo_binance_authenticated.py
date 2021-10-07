@@ -14,20 +14,24 @@ import pyximport
 pyximport.install()
 
 from cryptofeed import FeedHandler
-from cryptofeed.defines import BALANCES, ORDER_INFO, POSITIONS
+from cryptofeed.defines import BALANCES, ORDER_INFO, POSITIONS, ACCOUNT_CONFIG
 from cryptofeed.exchanges import Binance, BinanceDelivery, BinanceFutures
 
 
-async def balance(balance, receipt):
+async def balance(balance, receit):
     print(f"Balance: {balance}")
 
 
-async def position(position, receipt):
+async def position(position, receit):
     print(f"Position: {position}")
 
 
 async def order_info(order, receipt):
     print(f"Order info: {order}")
+
+# callback for account_config_update @logan
+async def account_config(account_config, receit):
+    print(f"Account config: {account_config}")
 
 
 def main():
@@ -36,7 +40,8 @@ def main():
 
     # binance = Binance(config=path_to_config, subscription={BALANCES: []}, timeout=-1, callbacks={BALANCES: balance, ORDER_INFO: order_info})
     # binance_delivery = BinanceDelivery(config=path_to_config, subscription={BALANCES: [], POSITIONS: []}, timeout=-1, callbacks={BALANCES: balance, POSITIONS: position, ORDER_INFO: order_info})
-    binance_futures = BinanceFutures(config=path_to_config, subscription={BALANCES: [], POSITIONS: []}, timeout=-1, callbacks={BALANCES: balance, POSITIONS: position, ORDER_INFO: order_info})
+    binance_futures = BinanceFutures(config=path_to_config, subscription={BALANCES: [], POSITIONS: []}, timeout=-1, callbacks={BALANCES: balance, POSITIONS: position, ORDER_INFO: order_info, ACCOUNT_CONFIG: account_config})
+    # binance_futures = BinanceFutures(config=path_to_config, subscription={BALANCES: [], POSITIONS: []}, timeout=-1, callbacks={BALANCES: balance, POSITIONS: position, ORDER_INFO: order_info})
 
     # print(binance._generate_token())
     # print(binance_delivery._generate_token())
@@ -51,3 +56,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+

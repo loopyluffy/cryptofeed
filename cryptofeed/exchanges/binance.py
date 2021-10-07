@@ -147,6 +147,9 @@ class Binance(Feed, BinanceRestMixin):
 
         if 0 < len(subs) < 200:
             return address + '/'.join(subs)
+        # for user stream socket address @logan
+        elif len(subs) == 0: 
+            return address
         else:
             def split_list(_list: list, n: int):
                 for i in range(0, len(_list), n):

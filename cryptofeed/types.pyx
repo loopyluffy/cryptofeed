@@ -434,6 +434,76 @@ cdef class Balance:
     def __hash__(self):
         return hash(self.__repr__())
 
+# customized with prefix Loopy by @logan
+cdef class LoopyBalance(Balance):
+    cdef readonly object cw_balance  # cross wallet balance
+    cdef readonly object changed    # balance change except pnl and commission
+    cdef readonly object timestamp 
+
+    def __init__(self, exchange, currency, balance, cw_balance, reserved, changed, timestamp, raw=None):
+        assert isinstance(cw_balance, Decimal)
+        assert changed is None or isinstance(changed, Decimal)
+        assert timestamp is None or isinstance(timestamp, float)
+
+        super().__init__(exchange, currency, balance, reserved, raw)
+
+        self.cw_balance = cw_balance
+        self.changed = changed 
+        self.timestamp = timestamp
+
+    cpdef dict to_dict(self, as_type=None):
+        if as_type is None:
+            return {'exchange': self.exchange, 'currency': self.currency, 'balance': self.balance, 'cw_balance': self.cw_balance, 'reserved': self.reserved, 'changed': self.changed, 'timestamp': self.timestamp}
+        return {'exchange': self.exchange, 'currency': self.currency, 'balance': as_type(self.balance), 'cw_balance': as_type(self.cw_balance), 'reserved': as_type(self.reserved), 'changed': as_type(self.changed), 'timestamp': self.timestamp}
+
+    def __repr__(self):
+        return f'exchange: {self.exchange} currency: {self.currency} balance: {self.balance} cw_balance: {self.cw_balance} reserved: {self.reserved} changed: {self.changed} timestamp: {self.timestamp}'
+
+
+cdef class LoopyPosition:
+    cdef readonly str exchange
+    cdef readonly str symbol
+    cdef readonly str margin_type
+    cdef readonly str side
+    cdef readonly object entry_price
+    cdef readonly object amount
+    cdef readonly object unrealised_pnl
+    cdef readonly object cum_pnl
+    cdef readonly object timestamp 
+    cdef readonly dict raw
+
+    def __init__(self, exchange, symbol, margin_type, side, entry_price, amount, unrealised_pnl, cum_pnl, timestamp, raw=None):
+        assert isinstance(entry_price, Decimal)
+        assert isinstance(amount, Decimal)
+        assert isinstance(unrealised_pnl, Decimal)
+        assert isinstance(cum_pnl, Decimal)
+        assert timestamp is None or isinstance(timestamp, float)
+
+        self.exchange = exchange
+        self.symbol = symbol
+        self.margin_type = margin_type
+        self.side = side
+        self.entry_price = entry_price
+        self.amount = amount
+        self.unrealised_pnl = unrealised_pnl
+        self.cum_pnl = cum_pnl
+        self.timestamp = timestamp
+        self.raw = raw
+
+    cpdef dict to_dict(self, as_type=None):
+        if as_type is None:
+            return {'exchange': self.exchange, 'symbol': self.symbol, 'margin_type': self.margin_type, 'side': self.side, 'entry_price': self.entry_price, 'amount': self.amount, 'unrealised_pnl': self.unrealised_pnl, 'cum_pnl': self.cum_pnl, 'timestamp': self.timestamp}
+        return {'exchange': self.exchange, 'symbol': self.symbol, 'margin_type': self.margin_type, 'side': self.side, 'entry_price': self.entry_price, 'amount': self.amount, 'unrealised_pnl': as_type(self.unrealised_pnl), 'cum_pnl': as_type(self.cum_pnl), 'timestamp': self.timestamp}
+
+    def __repr__(self):
+        return f'exchange: {self.exchange} symbol: {self.symbol} margin_type: {self.margin_type} side: {self.side} entry_price: {self.entry_price} amount: {self.amount} unrealised_pnl: {self.unrealised_pnl} cum_pnl: {self.cum_pnl} timestamp: {self.timestamp}'
+
+    def __eq__(self, cmp):
+        return self.exchange == cmp.exchange and self.symbol == cmp.symbol and self.margin_type == cmp.margin_type and self.side == cmp.side and self.entry_price == cmp.entry_price and self.amount == cmp.amount and self.unrealised_pnl == cmp.unrealised_pnl and self.cum_pnl == cmp.cum_pnl and self.timestamp == cmp.timestamp
+
+    def __hash__(self):
+        return hash(self.__repr__())
+
 
 cdef class L1Book:
     cdef readonly str exchange

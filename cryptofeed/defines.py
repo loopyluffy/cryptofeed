@@ -72,6 +72,8 @@ ORDERS = 'orders'
 ORDER_STATUS = 'order_status'
 TRADE_HISTORY = 'trade_history'
 POSITIONS = 'positions'
+# for binance user stream... @logan
+ACCOUNT_CONFIG = 'account_config'
 
 BUY = 'buy'
 SELL = 'sell'

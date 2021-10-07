@@ -12,10 +12,10 @@ from typing import List, Tuple, Callable, Dict
 from yapic import json
 
 from cryptofeed.connection import AsyncConnection, HTTPPoll, HTTPConcurrentPoll
-from cryptofeed.defines import BALANCES, BINANCE_FUTURES, BUY, FUNDING, LIMIT, LIQUIDATIONS, MARKET, OPEN_INTEREST, ORDER_INFO, POSITIONS, SELL
+from cryptofeed.defines import BALANCES, BINANCE_FUTURES, BUY, FUNDING, LIMIT, LIQUIDATIONS, MARKET, OPEN_INTEREST, ORDER_INFO, POSITIONS, SELL, ACCOUNT_CONFIG
 from cryptofeed.exchanges.binance import Binance
 from cryptofeed.exchanges.mixins.binance_rest import BinanceFuturesRestMixin
-from cryptofeed.types import OpenInterest, OrderInfo
+from cryptofeed.types import OpenInterest, OrderInfo, Balance, LoopyBalance, LoopyPosition
 
 LOG = logging.getLogger('feedhandler')
 
@@ -152,10 +152,47 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
 
         return ret
 
-    # connect another socket for user data stream... @logan
-    # deprecated for update of @mboscon
-    # async def _user_data(self, msg: dict, timestamp: float):
-    #     await self.callback('userData', 'test', timestamp)
+    # handle another user data stream... @logan
+    async def _account_config_update(self, msg: dict, timestamp: float):
+        """
+        {
+            "e":"ACCOUNT_CONFIG_UPDATE",       // Event Type
+            "E":1611646737479,                 // Event Time
+            "T":1611646737476,                 // Transaction Time
+            "ac":{                              
+            "s":"BTCUSDT",                     // symbol
+            "l":25                             // leverage
+
+            }
+        }  
+
+        or
+
+        {
+            "e":"ACCOUNT_CONFIG_UPDATE",       // Event Type
+            "E":1611646737479,                 // Event Time
+            "T":1611646737476,                 // Transaction Time
+            "ai":{                             // User's Account Configuration
+            "j":true                           // Multi-Assets Mode
+            }
+        }  
+        """
+        
+        await self.callback(ACCOUNT_CONFIG, 
+                            {'timestamp': self.timestamp_normalize(msg['E']),
+                            'receipt_timestamp': self.timestamp_normalize(msg['E']),
+                            'symbol': msg['ac']['s'] if 'ac' in msg else None,
+                            'leverage': msg['ac']['l'] if 'ac' in msg else None,
+                            'multi_asset_mode': msg['ai']['j'] if 'ai' in msg else None},
+                            timestamp)
+
+        # await self.callback(ACCOUNT_CONFIG, 
+        #                     timestamp=self.timestamp_normalize(msg['E']),
+        #                     receipt_timestamp=self.timestamp_normalize(msg['E']),
+        #                     symbol=msg['ac']['s'] if 'ac' in msg else None,
+        #                     leverage=msg['ac']['l'] if 'ac' in msg else None,
+        #                     multi_asset_mode=msg['ai']['j'] if 'ai' in msg else None)
+
 
     async def _account_update(self, msg: dict, timestamp: float):
         """
@@ -215,22 +252,54 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
             }
         }
         """
+        # for balance in msg['a']['B']:
+        #     await self.callback(BALANCES,
+        #                         feed=self.id,
+        #                         symbol=balance['a'],
+        #                         timestamp=self.timestamp_normalize(msg['E']),
+        #                         receipt_timestamp=timestamp,
+        #                         wallet_balance=Decimal(balance['wb']))
+        # for position in msg['a']['P']:
+        #     await self.callback(POSITIONS,
+        #                         feed=self.id,
+        #                         symbol=self.exchange_symbol_to_std_symbol(position['s']),
+        #                         timestamp=self.timestamp_normalize(msg['E']),
+        #                         receipt_timestamp=timestamp,
+        #                         position_amount=Decimal(position['pa']),
+        #                         entry_price=Decimal(position['ep']),
+        #                         unrealised_pnl=Decimal(position['up']))
+
+        # to sync callback parameters @logan
         for balance in msg['a']['B']:
-            await self.callback(BALANCES,
-                                feed=self.id,
-                                symbol=balance['a'],
-                                timestamp=self.timestamp_normalize(msg['E']),
-                                receipt_timestamp=timestamp,
-                                wallet_balance=Decimal(balance['wb']))
+
+            bal = LoopyBalance(
+                exchange=self.id,
+                currency=balance['a'],
+                balance=Decimal(balance['wb']),
+                cw_balance=Decimal(balance['cw']),
+                # how can get reserved balance...? @logan
+                reserved=Decimal(balance['wb']) - Decimal(0),
+                changed=Decimal(balance['bc']),
+                timestamp=self.timestamp_normalize(msg['E']),
+                raw=balance)
+
+            await self.callback(BALANCES, bal, timestamp)
+
         for position in msg['a']['P']:
-            await self.callback(POSITIONS,
-                                feed=self.id,
-                                symbol=self.exchange_symbol_to_std_symbol(position['s']),
-                                timestamp=self.timestamp_normalize(msg['E']),
-                                receipt_timestamp=timestamp,
-                                position_amount=Decimal(position['pa']),
-                                entry_price=Decimal(position['ep']),
-                                unrealised_pnl=Decimal(position['up']))
+
+            pos = LoopyPosition(
+                exchange=self.id,
+                symbol=self.exchange_symbol_to_std_symbol(position['s']),
+                margin_type=position['mt'],
+                side=position['ps'],
+                entry_price=Decimal(position['ep']),
+                amount=Decimal(position['pa']),
+                unrealised_pnl=Decimal(position['up']),
+                cum_pnl=Decimal(position['cr']),
+                timestamp=self.timestamp_normalize(msg['E']),
+                raw=balance)
+
+            await self.callback(POSITIONS, pos, timestamp)
 
     async def _order_update(self, msg: dict, timestamp: float):
         """
@@ -277,16 +346,20 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
         }
         """
         oi = OrderInfo(
-            self.id,
-            self.exchange_symbol_to_std_symbol(msg['o']['s']),
-            msg['o']['i'],
-            BUY if msg['o']['S'].lower() == 'buy' else SELL,
-            msg['o']['x'],
-            LIMIT if msg['o']['o'].lower() == 'limit' else MARKET if msg['o']['o'].lower() == 'market' else None,
-            Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else None,
-            Decimal(msg['o']['q']),
-            Decimal(msg['o']['q']) - Decimal(msg['o']['z']),
-            self.timestamp_normalize(msg['E']),
+            exchange=self.id,
+            symbol=self.exchange_symbol_to_std_symbol(msg['o']['s']),
+            # in binance order id is number @logan
+            id=str(msg['o']['i']),
+            # id=msg['o']['i'],
+            side=BUY if msg['o']['S'].lower() == 'buy' else SELL,
+            status=msg['o']['x'],
+            type=LIMIT if msg['o']['o'].lower() == 'limit' else MARKET if msg['o']['o'].lower() == 'market' else None,
+            # if never partially filled, price is original price... @logan
+            price=Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else Decimal(msg['o']['p']),
+            # price=Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else None,
+            amount=Decimal(msg['o']['q']),
+            remaining=Decimal(msg['o']['q']) - Decimal(msg['o']['z']),
+            timestamp=self.timestamp_normalize(msg['E']),
             raw=msg
         )
         await self.callback(ORDER_INFO, oi, timestamp)
@@ -300,11 +373,6 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
             if self.concurrent_http:
                 return create_task(coro)
             return await coro
-
-        # handle user data stream... @logan
-        # deprecated for update of @mboscon
-        # if msg.get('e') == 'ACCOUNT_CONFIG_UPDATE':
-        #     return await self._user_data(msg, timestamp)
         
         # Handle account updates from User Data Stream
         if self.requires_authentication:
@@ -313,6 +381,9 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
                 await self._account_update(msg, timestamp)
             elif msg_type == 'ORDER_TRADE_UPDATE':
                 await self._order_update(msg, timestamp)
+            # handle another user data stream... @logan
+            elif msg_type == 'ACCOUNT_CONFIG_UPDATE':
+                await self._account_config_update(msg, timestamp)
             return
 
         # Combined stream events are wrapped as follows: {"stream":"<streamName>","data":<rawPayload>}

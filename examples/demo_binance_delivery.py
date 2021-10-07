@@ -67,8 +67,8 @@ async def account(t, receipt_timestamp):
 
 
 def main():
-    # path_to_config = 'config.yaml'
-    path_to_config = 'sandbox/rest_config.yaml'
+    path_to_config = 'config.yaml'
+    # path_to_config = 'sandbox/rest_config.yaml'
     # binance = Binance(config=path_to_config)
     # print(binance.balances_sync())
     # print(binance.orders_sync())
@@ -80,7 +80,7 @@ def main():
 
     # user data stream channel @logan
     # USER = "jzhJ53lZGnfvwZ0fnSARhZBnFkG12ScT7rPdRFYXGtIEzlgwvzbKsibMpk5njdBN"
-    USER_DATA = 'userData'
+    # USER_DATA = 'userData'
 
     # binance_futures = BinanceFutures(config=path_to_config)
     # print(binance_futures.balances_sync())
@@ -110,12 +110,12 @@ def main():
     #                            callbacks={L2_BOOK: abook, TRADES: trades, TICKER: ticker}))
     f.add_feed(BinanceFutures(config=path_to_config,
                               max_depth=3, symbols=['BTC-USDT-PERP'],
-                              channels=[USER_DATA],
-                              callbacks={USER_DATA: account}))
+                            #   channels=[USER_DATA],
+                            #   callbacks={USER_DATA: account}))
                             #   channels=[TICKER, USER_DATA],
                             #   callbacks={TICKER: ticker, USER_DATA: account}))
-                            #   channels=[TICKER],
-                            #   callbacks={TICKER: ticker}))
+                              channels=[TICKER],
+                              callbacks={TICKER: ticker}))
                             # channels=[L2_BOOK, TRADES, TICKER],
                             # callbacks={L2_BOOK: abook, TRADES: trades, TICKER: ticker}))
     f.run()
