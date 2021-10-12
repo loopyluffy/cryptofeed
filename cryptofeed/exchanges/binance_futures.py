@@ -378,8 +378,8 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
             elif msg_type == 'ORDER_TRADE_UPDATE':
                 await self._order_update(msg, timestamp)
             # handle another user data stream... @logan
-            elif msg_type == 'ACCOUNT_CONFIG_UPDATE':
-                await self._account_config_update(msg, timestamp)
+            # elif msg_type == 'ACCOUNT_CONFIG_UPDATE':
+            #     await self._account_config_update(msg, timestamp)
             return
 
         # Combined stream events are wrapped as follows: {"stream":"<streamName>","data":<rawPayload>}

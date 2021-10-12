@@ -81,3 +81,24 @@ class LiquidationsKafka(KafkaCallback, BackendCallback):
 class CandlesKafka(KafkaCallback, BackendCallback):
     default_key = 'candles'
     default_channel = 'candles'
+
+
+# user data channel @logan
+class BalancesKafka(KafkaCallback, BackendCallback):
+    default_key = 'balances'
+    default_channel = 'balances'
+
+
+class PositionsKafka(KafkaCallback, BackendCallback):
+    default_key = 'positions'
+    default_channel = 'positions'
+
+
+class AccountConfigKafka(KafkaCallback, BackendCallback):
+    default_key = 'account_config'
+    default_channel = 'account_config'
+
+
+class OrderInfoKafka(KafkaCallback, BackendCallback):
+    default_key = 'order_info'
+    default_channel = 'order_info'

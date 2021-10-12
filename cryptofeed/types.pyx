@@ -438,7 +438,7 @@ cdef class Balance:
 cdef class LoopyBalance(Balance):
     cdef readonly object cw_balance  # cross wallet balance
     cdef readonly object changed    # balance change except pnl and commission
-    cdef readonly object timestamp 
+    cdef readonly object timestamp
 
     def __init__(self, exchange, currency, balance, cw_balance, reserved, changed, timestamp, raw=None):
         assert isinstance(cw_balance, Decimal)
@@ -453,8 +453,8 @@ cdef class LoopyBalance(Balance):
 
     cpdef dict to_dict(self, as_type=None):
         if as_type is None:
-            return {'exchange': self.exchange, 'currency': self.currency, 'balance': self.balance, 'cw_balance': self.cw_balance, 'reserved': self.reserved, 'changed': self.changed, 'timestamp': self.timestamp}
-        return {'exchange': self.exchange, 'currency': self.currency, 'balance': as_type(self.balance), 'cw_balance': as_type(self.cw_balance), 'reserved': as_type(self.reserved), 'changed': as_type(self.changed), 'timestamp': self.timestamp}
+            return {'exchange': self.exchange, 'currency': self.currency, 'symbol': self.currency, 'balance': self.balance, 'cw_balance': self.cw_balance, 'reserved': self.reserved, 'changed': self.changed, 'timestamp': self.timestamp}
+        return {'exchange': self.exchange, 'currency': self.currency, 'symbol': self.currency, 'balance': as_type(self.balance), 'cw_balance': as_type(self.cw_balance), 'reserved': as_type(self.reserved), 'changed': as_type(self.changed), 'timestamp': self.timestamp}
 
     def __repr__(self):
         return f'exchange: {self.exchange} currency: {self.currency} balance: {self.balance} cw_balance: {self.cw_balance} reserved: {self.reserved} changed: {self.changed} timestamp: {self.timestamp}'
