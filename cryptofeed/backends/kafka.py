@@ -37,7 +37,8 @@ class KafkaCallback:
         # topic keywords lowercase only @weaver
         # topic =  f"{self.key}norm-live-{feed}-{self.default_channel}-{symbol}".lower()
         # topic = f"{self.key}-{data['exchange']}-{data['symbol']}"
-        topic = f"{self.key}-{data['exchange']}-{data['symbol']}".lower()
+        # topic = f"{self.key}-{data['exchange']}-{data['symbol']}".lower()
+        topic = f"{self.key}-{data['exchange']}".lower()
         await self.producer.send_and_wait(topic, json.dumps(data).encode('utf-8'))
 
 
