@@ -290,7 +290,8 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
                 exchange=self.id,
                 symbol=self.exchange_symbol_to_std_symbol(position['s']),
                 margin_type=position['mt'],
-                side=position['ps'],
+                side='long' if Decimal(position['pa']) > 0 else 'short' if Decimal(position['pa']) < 0 else position['ps'],
+                # side=position['ps'],
                 entry_price=Decimal(position['ep']),
                 amount=Decimal(position['pa']),
                 unrealised_pnl=Decimal(position['up']),
@@ -351,7 +352,7 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
             id=str(msg['o']['i']),
             # id=msg['o']['i'],
             side=BUY if msg['o']['S'].lower() == 'buy' else SELL,
-            status=msg['o']['x'],
+            status=msg['o']['X'],  # order status is not excution type @logan
             type=LIMIT if msg['o']['o'].lower() == 'limit' else MARKET if msg['o']['o'].lower() == 'market' else None,
             # if never partially filled, price is original price... @logan
             price=Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else Decimal(msg['o']['p']),
@@ -405,5 +406,46 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
         else:
             LOG.warning("%s: Unexpected message received: %s", self.id, msg)
 
+    # for stop loss order... @logan
+    async def place_order(self, symbol: str, side: str, order_type: str, amount: Decimal, price=None, stop_price=None, closePosition=False,  time_in_force=None, test=False):
+        if (order_type == MARKET or order_type == STOP_MARKET) and price:
+            raise ValueError('Cannot specify price on a market order')
+        if order_type == LIMIT:
+            if not price:
+                raise ValueError('Must specify price on a limit order')
+            if not time_in_force:
+                raise ValueError('Must specify time in force on a limit order') 
+        if order_type == STOP_MARKET:
+            if not stop_price:
+                raise ValueError('Must specify stop_price on a stop market order')
+        if order_type == STOP_LIMIT:
+            if not price:
+                raise ValueError('Must specify price on a stop order')
+            if not stop_price:
+                raise ValueError('Must specify stop_price on a stop order')
+                
+            
+        ot = self.normalize_order_options(order_type)
+        sym = self.std_symbol_to_exchange_symbol(symbol)
+        parameters = {
+            'symbol': sym,
+            'side': 'BUY' if side is BUY else 'SELL',
+            'type': ot,
+            'quantity': str(amount),
+        }
 
-   
+        if price:
+            if order_type == STOP_MARKET:
+                parameters['stopPrice'] = str(price)
+                parameters['closePosition'] = closePosition
+            else:
+                parameters['price'] = str(price)
+        if time_in_force:
+            parameters['timeInForce'] = self.normalize_order_options(time_in_force)
+        if stop_price:
+            parameters['stopPrice'] = str(stop_price)
+        if order_type == STOP_MARKET:
+            parameters['closePosition'] = closePosition
+
+        data = await self._request(POST, 'test' if test else 'order', auth=True, payload=parameters)
+        return data
