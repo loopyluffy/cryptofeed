@@ -493,7 +493,7 @@ cdef class LoopyPosition:
     cpdef dict to_dict(self, as_type=None):
         if as_type is None:
             return {'exchange': self.exchange, 'symbol': self.symbol, 'margin_type': self.margin_type, 'side': self.side, 'entry_price': self.entry_price, 'amount': self.amount, 'unrealised_pnl': self.unrealised_pnl, 'cum_pnl': self.cum_pnl, 'timestamp': self.timestamp}
-        return {'exchange': self.exchange, 'symbol': self.symbol, 'margin_type': self.margin_type, 'side': self.side, 'entry_price': self.entry_price, 'amount': self.amount, 'unrealised_pnl': as_type(self.unrealised_pnl), 'cum_pnl': as_type(self.cum_pnl), 'timestamp': self.timestamp}
+        return {'exchange': self.exchange, 'symbol': self.symbol, 'margin_type': self.margin_type, 'side': self.side, 'entry_price': as_type(self.entry_price), 'amount': as_type(self.amount), 'unrealised_pnl': as_type(self.unrealised_pnl), 'cum_pnl': as_type(self.cum_pnl), 'timestamp': self.timestamp}
 
     def __repr__(self):
         return f'exchange: {self.exchange} symbol: {self.symbol} margin_type: {self.margin_type} side: {self.side} entry_price: {self.entry_price} amount: {self.amount} unrealised_pnl: {self.unrealised_pnl} cum_pnl: {self.cum_pnl} timestamp: {self.timestamp}'
