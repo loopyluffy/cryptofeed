@@ -25,11 +25,11 @@ sys.path.append(parent_dir_path)
 import pyximport
 pyximport.install()
 
-
+import asyncio
 
 from cryptofeed import FeedHandler
-from cryptofeed.defines import GOOD_TIL_CANCELED, L2_BOOK, LIMIT, SELL, TICKER, TRADES, BALANCES
-from cryptofeed.exchanges import Binance, BinanceDelivery, BinanceFutures
+from cryptofeed.defines import BALANCES, BINANCE_FUTURES, BUY, FUNDING, LIMIT, LIQUIDATIONS, MARKET, OPEN_INTEREST, ORDER_INFO, POSITIONS, SELL, ACCOUNT_CONFIG, STOP_MARKET, STOP_LIMIT
+from cryptofeed.exchanges import Binance, BinanceDelivery, BinanceFutures, LoopyBinanceFutures
 
 
 # info = BinanceDelivery.info()
@@ -66,7 +66,8 @@ async def account(t, receipt_timestamp):
     print(f"Trade received at {receipt_timestamp}: {t}")
 
 
-def main():
+# def main():
+async def main():
     # path_to_config = 'config.yaml'
     path_to_config = 'sandbox/rest_config.yaml'
     # binance = Binance(config=path_to_config)
@@ -82,16 +83,17 @@ def main():
     # USER = "jzhJ53lZGnfvwZ0fnSARhZBnFkG12ScT7rPdRFYXGtIEzlgwvzbKsibMpk5njdBN"
     # USER_DATA = 'userData'
 
-    binance_futures = BinanceFutures(config=path_to_config)
-    print(binance_futures.balances_sync())
-    print(binance_futures.orders_sync())
-    print(binance_futures.positions_sync())
-    order = binance_futures.place_order_sync('ETH-USDT-PERP', SELL, LIMIT, 0.004, 5000, time_in_force=GOOD_TIL_CANCELED)
-    print(binance_futures.orders_sync(symbol='BTC-USDT-PERP'))
-    print(binance_futures.orders_sync(symbol='ETH-USDT-PERP'))
+    binance_futures = LoopyBinanceFutures(config=path_to_config)
+    # print(binance_futures.balances_sync())
+    # print(binance_futures.orders_sync())
+    # print(binance_futures.positions_sync())
+    # order = binance_futures.place_order_sync('ETH-USDT-PERP', SELL, LIMIT, 0.004, 5000, time_in_force=GOOD_TIL_CANCELED)
+    order = await asyncio.create_task(binance_futures.place_order(symbol='ETH-USDT-PERP', side=BUY, order_type=STOP_MARKET, amount=0, stop_price=4165, closePosition=True))
+    # print(binance_futures.orders_sync(symbol='BTC-USDT-PERP'))
+    # print(binance_futures.orders_sync(symbol='ETH-USDT-PERP'))
     print(order)
-    print(binance_futures.cancel_order_sync(order['orderId'], symbol='ETH-USDT-PERP'))
-    print(binance_futures.orders_sync(symbol='ETH-USDT-PERP'))
+    # print(binance_futures.cancel_order_sync(order['orderId'], symbol='ETH-USDT-PERP'))
+    # print(binance_futures.orders_sync(symbol='ETH-USDT-PERP'))
 
     # binance_delivery = BinanceDelivery(config=path_to_config)
     # print(binance_delivery.balances_sync())
@@ -123,4 +125,6 @@ def main():
     '''
 
 if __name__ == '__main__':
-    main()
+    # main()
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(main())

@@ -11,10 +11,10 @@ from typing import List, Tuple, Callable, Dict
 from yapic import json
 
 from cryptofeed.connection import AsyncConnection, HTTPPoll
-from cryptofeed.defines import BALANCES, BINANCE_FUTURES, BUY, FUNDING, LIMIT, LIQUIDATIONS, MARKET, OPEN_INTEREST, ORDER_INFO, POSITIONS, SELL, ACCOUNT_CONFIG, STOP_MARKET, STOP_LIMIT
+from cryptofeed.defines import BALANCES, BINANCE_FUTURES, BUY, FUNDING, LIMIT, LIQUIDATIONS, MARKET, OPEN_INTEREST, ORDER_INFO, POSITIONS, SELL
 from cryptofeed.exchanges.binance import Binance
 from cryptofeed.exchanges.mixins.binance_rest import BinanceFuturesRestMixin
-from cryptofeed.types import OpenInterest, OrderInfo, Balance, LoopyBalance, LoopyPosition
+from cryptofeed.types import OpenInterest, OrderInfo
 
 LOG = logging.getLogger('feedhandler')
 
@@ -31,11 +31,6 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
         OPEN_INTEREST: 'open_interest',
         LIQUIDATIONS: 'forceOrder',
         POSITIONS: POSITIONS
-
-        # authenticated channel test @logan
-        # deprecated for update of @mboscon
-        # BALANCES: 'JEI6zo112RvYorpuhGZ16hhkoC7HkThoPqromIUwRlMGerraTERNmDmiowHrSbxA'
-        # 'userData': 'userData'
     }
 
     @classmethod
@@ -98,28 +93,6 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
             await self.callback(OPEN_INTEREST, o, timestamp)
             self._open_interest_cache[pair] = oi
 
-    # ----------------------------------------------------------------------------------------
-    # start user data stream @logan
-    # deprecated for update of @mboscon
-    """
-    async def _start_user_data_stream(self):
-        from cryptofeed.defines import POST
-
-        data = await self._request(POST, 'listenKey', auth=True)
-        self.websocket_channels['userData'] = data['listenKey'] 
-        # return data['listenKey']
-
-    async def subscribe(self, conn: AsyncConnection):
-        await super().subscribe(conn)
-
-        if self.subscription is not None:
-            for channel in self.subscription:
-                # chan = self.std_channel_to_exchange(channel)
-                if channel == 'userData':
-                    await self._start_user_data_stream()    
-    """
-    # ----------------------------------------------------------------------------------------
-
     def connect(self) -> List[Tuple[AsyncConnection, Callable[[None], None], Callable[[str, float], None]]]:
         ret = []
         if self.address:
@@ -129,69 +102,7 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
             if chan == 'open_interest':
                 addrs = [f"{self.rest_endpoint}/openInterest?symbol={pair}" for pair in self.subscription[chan]]
                 ret.append((PollCls(addrs, self.id, delay=60.0, sleep=self.open_interest_interval, proxy=self.http_proxy), self.subscribe, self.message_handler, self.authenticate))
-
-        # ----------------------------------------------------------------------------------------
-        # connect another socket for user data stream... @logan
-        # deprecated for update of @mboscon
-        """
-        from cryptofeed.connection import WSAsyncConn # AsyncConnection, HTTPAsyncConn, 
-
-        if self.subscription is not None:
-            for channel in self.subscription:
-                # chan = self.std_channel_to_exchange(channel)
-                if channel == 'userData':
-                    # address = self.ws_endpoint + '/ws/rUzZ3D0gsNR8Yl5QbI1Opk2z8oXIjIHCoPoEgFYr7fI5VZievgsrYdoHOUAEoTqQ'
-                    # address = f"{self.ws_endpoint}/ws/JEI6zo112RvYorpuhGZ16hhkoC7HkThoPqromIUwRlMGerraTERNmDmiowHrSbxA"
-                    # task = create_task(self._start_user_data_stream())
-                    # data = await task
-                    address = self.ws_endpoint + '/ws/' + self.websocket_channels['userData']
-                    ret.append((WSAsyncConn(address, self.id, **self.ws_defaults), self.subscribe, self.message_handler, self.authenticate))
-        """
-        # ----------------------------------------------------------------------------------------
-
         return ret
-
-    # handle another user data stream... @logan
-    async def _account_config_update(self, msg: dict, timestamp: float):
-        """
-        {
-            "e":"ACCOUNT_CONFIG_UPDATE",       // Event Type
-            "E":1611646737479,                 // Event Time
-            "T":1611646737476,                 // Transaction Time
-            "ac":{                              
-            "s":"BTCUSDT",                     // symbol
-            "l":25                             // leverage
-
-            }
-        }  
-
-        or
-
-        {
-            "e":"ACCOUNT_CONFIG_UPDATE",       // Event Type
-            "E":1611646737479,                 // Event Time
-            "T":1611646737476,                 // Transaction Time
-            "ai":{                             // User's Account Configuration
-            "j":true                           // Multi-Assets Mode
-            }
-        }  
-        """
-        
-        await self.callback(ACCOUNT_CONFIG, 
-                            {'timestamp': self.timestamp_normalize(msg['E']),
-                            'receipt_timestamp': self.timestamp_normalize(msg['E']),
-                            'symbol': msg['ac']['s'] if 'ac' in msg else None,
-                            'leverage': msg['ac']['l'] if 'ac' in msg else None,
-                            'multi_asset_mode': msg['ai']['j'] if 'ai' in msg else None},
-                            timestamp)
-
-        # await self.callback(ACCOUNT_CONFIG, 
-        #                     timestamp=self.timestamp_normalize(msg['E']),
-        #                     receipt_timestamp=self.timestamp_normalize(msg['E']),
-        #                     symbol=msg['ac']['s'] if 'ac' in msg else None,
-        #                     leverage=msg['ac']['l'] if 'ac' in msg else None,
-        #                     multi_asset_mode=msg['ai']['j'] if 'ai' in msg else None)
-
 
     async def _account_update(self, msg: dict, timestamp: float):
         """
@@ -251,55 +162,22 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
             }
         }
         """
-        # for balance in msg['a']['B']:
-        #     await self.callback(BALANCES,
-        #                         feed=self.id,
-        #                         symbol=balance['a'],
-        #                         timestamp=self.timestamp_normalize(msg['E']),
-        #                         receipt_timestamp=timestamp,
-        #                         wallet_balance=Decimal(balance['wb']))
-        # for position in msg['a']['P']:
-        #     await self.callback(POSITIONS,
-        #                         feed=self.id,
-        #                         symbol=self.exchange_symbol_to_std_symbol(position['s']),
-        #                         timestamp=self.timestamp_normalize(msg['E']),
-        #                         receipt_timestamp=timestamp,
-        #                         position_amount=Decimal(position['pa']),
-        #                         entry_price=Decimal(position['ep']),
-        #                         unrealised_pnl=Decimal(position['up']))
-
-        # to sync callback parameters @logan
         for balance in msg['a']['B']:
-
-            bal = LoopyBalance(
-                exchange=self.id,
-                currency=balance['a'],
-                balance=Decimal(balance['wb']),
-                cw_balance=Decimal(balance['cw']),
-                # how can get reserved balance...? @logan
-                reserved=Decimal(balance['wb']) - Decimal(0),
-                changed=Decimal(balance['bc']),
-                timestamp=self.timestamp_normalize(msg['E']),
-                raw=balance)
-
-            await self.callback(BALANCES, bal, timestamp)
-
+            await self.callback(BALANCES,
+                                feed=self.id,
+                                symbol=balance['a'],
+                                timestamp=self.timestamp_normalize(msg['E']),
+                                receipt_timestamp=timestamp,
+                                wallet_balance=Decimal(balance['wb']))
         for position in msg['a']['P']:
-
-            pos = LoopyPosition(
-                exchange=self.id,
-                symbol=self.exchange_symbol_to_std_symbol(position['s']),
-                margin_type=position['mt'],
-                side='long' if Decimal(position['pa']) > 0 else 'short' if Decimal(position['pa']) < 0 else position['ps'],
-                # side=position['ps'],
-                entry_price=Decimal(position['ep']),
-                amount=Decimal(position['pa']),
-                unrealised_pnl=Decimal(position['up']),
-                cum_pnl=Decimal(position['cr']),
-                timestamp=self.timestamp_normalize(msg['E']),
-                raw=balance)
-
-            await self.callback(POSITIONS, pos, timestamp)
+            await self.callback(POSITIONS,
+                                feed=self.id,
+                                symbol=self.exchange_symbol_to_std_symbol(position['s']),
+                                timestamp=self.timestamp_normalize(msg['E']),
+                                receipt_timestamp=timestamp,
+                                position_amount=Decimal(position['pa']),
+                                entry_price=Decimal(position['ep']),
+                                unrealised_pnl=Decimal(position['up']))
 
     async def _order_update(self, msg: dict, timestamp: float):
         """
@@ -346,20 +224,16 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
         }
         """
         oi = OrderInfo(
-            exchange=self.id,
-            symbol=self.exchange_symbol_to_std_symbol(msg['o']['s']),
-            # in binance order id is number @logan
-            id=str(msg['o']['i']),
-            # id=msg['o']['i'],
-            side=BUY if msg['o']['S'].lower() == 'buy' else SELL,
-            status=msg['o']['X'],  # order status is not excution type @logan
-            type=LIMIT if msg['o']['o'].lower() == 'limit' else MARKET if msg['o']['o'].lower() == 'market' else None,
-            # if never partially filled, price is original price... @logan
-            price=Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else Decimal(msg['o']['p']),
-            # price=Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else None,
-            amount=Decimal(msg['o']['q']),
-            remaining=Decimal(msg['o']['q']) - Decimal(msg['o']['z']),
-            timestamp=self.timestamp_normalize(msg['E']),
+            self.id,
+            self.exchange_symbol_to_std_symbol(msg['o']['s']),
+            msg['o']['i'],
+            BUY if msg['o']['S'].lower() == 'buy' else SELL,
+            msg['o']['x'],
+            LIMIT if msg['o']['o'].lower() == 'limit' else MARKET if msg['o']['o'].lower() == 'market' else None,
+            Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else None,
+            Decimal(msg['o']['q']),
+            Decimal(msg['o']['q']) - Decimal(msg['o']['z']),
+            self.timestamp_normalize(msg['E']),
             raw=msg
         )
         await self.callback(ORDER_INFO, oi, timestamp)
@@ -378,9 +252,6 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
                 await self._account_update(msg, timestamp)
             elif msg_type == 'ORDER_TRADE_UPDATE':
                 await self._order_update(msg, timestamp)
-            # handle another user data stream... @logan
-            # elif msg_type == 'ACCOUNT_CONFIG_UPDATE':
-            #     await self._account_config_update(msg, timestamp)
             return
 
         # Combined stream events are wrapped as follows: {"stream":"<streamName>","data":<rawPayload>}
@@ -405,47 +276,3 @@ class BinanceFutures(Binance, BinanceFuturesRestMixin):
             await self._candle(msg, timestamp)
         else:
             LOG.warning("%s: Unexpected message received: %s", self.id, msg)
-
-    # for stop loss order... @logan
-    async def place_order(self, symbol: str, side: str, order_type: str, amount: Decimal, price=None, stop_price=None, closePosition=False,  time_in_force=None, test=False):
-        if (order_type == MARKET or order_type == STOP_MARKET) and price:
-            raise ValueError('Cannot specify price on a market order')
-        if order_type == LIMIT:
-            if not price:
-                raise ValueError('Must specify price on a limit order')
-            if not time_in_force:
-                raise ValueError('Must specify time in force on a limit order') 
-        if order_type == STOP_MARKET:
-            if not stop_price:
-                raise ValueError('Must specify stop_price on a stop market order')
-        if order_type == STOP_LIMIT:
-            if not price:
-                raise ValueError('Must specify price on a stop order')
-            if not stop_price:
-                raise ValueError('Must specify stop_price on a stop order')
-                
-            
-        ot = self.normalize_order_options(order_type)
-        sym = self.std_symbol_to_exchange_symbol(symbol)
-        parameters = {
-            'symbol': sym,
-            'side': 'BUY' if side is BUY else 'SELL',
-            'type': ot,
-            'quantity': str(amount),
-        }
-
-        if price:
-            if order_type == STOP_MARKET:
-                parameters['stopPrice'] = str(price)
-                parameters['closePosition'] = closePosition
-            else:
-                parameters['price'] = str(price)
-        if time_in_force:
-            parameters['timeInForce'] = self.normalize_order_options(time_in_force)
-        if stop_price:
-            parameters['stopPrice'] = str(stop_price)
-        if order_type == STOP_MARKET:
-            parameters['closePosition'] = closePosition
-
-        data = await self._request(POST, 'test' if test else 'order', auth=True, payload=parameters)
-        return data
