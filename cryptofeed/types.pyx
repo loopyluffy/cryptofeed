@@ -454,7 +454,7 @@ cdef class LoopyBalance(Balance):
     cpdef dict to_dict(self, as_type=None):
         if as_type is None:
             return {'exchange': self.exchange, 'currency': self.currency, 'symbol': self.currency, 'balance': self.balance, 'cw_balance': self.cw_balance, 'reserved': self.reserved, 'changed': self.changed, 'timestamp': self.timestamp}
-        return {'exchange': self.exchange, 'currency': self.currency, 'symbol': self.currency, 'balance': as_type(self.balance), 'cw_balance': as_type(self.cw_balance), 'reserved': as_type(self.reserved), 'changed': as_type(self.changed), 'timestamp': self.timestamp}
+        return {'exchange': self.exchange, 'currency': self.currency, 'symbol': self.currency, 'balance': as_type(self.balance), 'cw_balance': as_type(self.cw_balance), 'reserved': as_type(self.reserved), 'changed': self.changed, 'timestamp': self.timestamp}
 
     def __repr__(self):
         return f'exchange: {self.exchange} currency: {self.currency} balance: {self.balance} cw_balance: {self.cw_balance} reserved: {self.reserved} changed: {self.changed} timestamp: {self.timestamp}'
