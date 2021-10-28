@@ -304,7 +304,7 @@ class LoopyBinanceFutures(BinanceFutures):
             # id=msg['o']['i'],
             side=BUY if msg['o']['S'].lower() == 'buy' else SELL,
             status=msg['o']['X'],  # order status is not excution type @logan
-            type=LIMIT if msg['o']['o'].lower() == 'limit' else MARKET if msg['o']['o'].lower() == 'market' else None,
+            type=LIMIT if msg['o']['o'].lower() == 'limit' else MARKET if msg['o']['o'].lower() == 'market' else STOP_LIMIT if msg['o']['o'].lower() == 'stop' else STOP_MARKET if msg['o']['o'].lower() == 'stop_market' else None,
             # if never partially filled, price is original price... @logan
             price=Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else Decimal(msg['o']['p']),
             # price=Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else None,
