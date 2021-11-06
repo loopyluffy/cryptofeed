@@ -45,7 +45,9 @@ class BackendQueue:
 class BackendCallback:
     async def __call__(self, dtype, receipt_timestamp: float):
         data = dtype.to_dict(numeric_type=self.numeric_type, none_to=self.none_to)
-        data['receipt_timestamp'] = receipt_timestamp
+        # data['receipt_timestamp'] = receipt_timestamp
+        # unit: sec => milisec @logan
+        data['receipt_timestamp'] = receipt_timestamp * 1000
         await self.write(data)
 
 

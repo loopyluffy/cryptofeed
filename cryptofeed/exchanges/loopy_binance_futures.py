@@ -19,7 +19,8 @@ from cryptofeed.defines import (
 )
 # from cryptofeed.exchanges.binance import Binance
 # from cryptofeed.exchanges.mixins.binance_rest import BinanceFuturesRestMixin
-from cryptofeed.types import OpenInterest, OrderInfo, Balance, LoopyBalance, LoopyPosition
+from cryptofeed.types import OpenInterest
+from cryptofeed.loopy_types import LoopyOrderInfo, LoopyBalance, LoopyPosition
 from cryptofeed.exchanges.binance_futures import BinanceFutures
 
 LOG = logging.getLogger('feedhandler')
@@ -154,84 +155,70 @@ class LoopyBinanceFutures(BinanceFutures):
             {
             "m":"ORDER",                      // Event reason type
             "B":[                             // Balances
-                {
-                "a":"USDT",                   // Asset
-                "wb":"122624.12345678",       // Wallet Balance
-                "cw":"100.12345678",          // Cross Wallet Balance
-                "bc":"50.12345678"            // Balance Change except PnL and Commission
-                },
-                {
-                "a":"BUSD",
-                "wb":"1.00000000",
-                "cw":"0.00000000",
-                "bc":"-49.12345678"
-                }
+                    {
+                    "a":"USDT",                   // Asset
+                    "wb":"122624.12345678",       // Wallet Balance
+                    "cw":"100.12345678",          // Cross Wallet Balance
+                    "bc":"50.12345678"            // Balance Change except PnL and Commission
+                    },
+                    {
+                    "a":"BUSD",
+                    "wb":"1.00000000",
+                    "cw":"0.00000000",
+                    "bc":"-49.12345678"
+                    }
             ],
             "P":[
-                {
-                "s":"BTCUSDT",            // Symbol
-                "pa":"0",                 // Position Amount
-                "ep":"0.00000",            // Entry Price
-                "cr":"200",               // (Pre-fee) Accumulated Realized
-                "up":"0",                     // Unrealized PnL
-                "mt":"isolated",              // Margin Type
-                "iw":"0.00000000",            // Isolated Wallet (if isolated position)
-                "ps":"BOTH"                   // Position Side
-                }，
-                {
-                    "s":"BTCUSDT",
-                    "pa":"20",
-                    "ep":"6563.66500",
-                    "cr":"0",
-                    "up":"2850.21200",
-                    "mt":"isolated",
-                    "iw":"13200.70726908",
-                    "ps":"LONG"
-                },
-                {
-                    "s":"BTCUSDT",
-                    "pa":"-10",
-                    "ep":"6563.86000",
-                    "cr":"-45.04000000",
-                    "up":"-1423.15600",
-                    "mt":"isolated",
-                    "iw":"6570.42511771",
-                    "ps":"SHORT"
-                }
+                    {
+                        "s":"BTCUSDT",            // Symbol
+                        "pa":"0",                 // Position Amount
+                        "ep":"0.00000",            // Entry Price
+                        "cr":"200",               // (Pre-fee) Accumulated Realized
+                        "up":"0",                     // Unrealized PnL
+                        "mt":"isolated",              // Margin Type
+                        "iw":"0.00000000",            // Isolated Wallet (if isolated position)
+                        "ps":"BOTH"                   // Position Side
+                    }，
+                    {
+                        "s":"BTCUSDT",
+                        "pa":"20",
+                        "ep":"6563.66500",
+                        "cr":"0",
+                        "up":"2850.21200",
+                        "mt":"isolated",
+                        "iw":"13200.70726908",
+                        "ps":"LONG"
+                    },
+                    {
+                        "s":"BTCUSDT",
+                        "pa":"-10",
+                        "ep":"6563.86000",
+                        "cr":"-45.04000000",
+                        "up":"-1423.15600",
+                        "mt":"isolated",
+                        "iw":"6570.42511771",
+                        "ps":"SHORT"
+                    }
             ]
             }
         }
         """
-        # for balance in msg['a']['B']:
-        #     await self.callback(BALANCES,
-        #                         feed=self.id,
-        #                         symbol=balance['a'],
-        #                         timestamp=self.timestamp_normalize(msg['E']),
-        #                         receipt_timestamp=timestamp,
-        #                         wallet_balance=Decimal(balance['wb']))
-        # for position in msg['a']['P']:
-        #     await self.callback(POSITIONS,
-        #                         feed=self.id,
-        #                         symbol=self.exchange_symbol_to_std_symbol(position['s']),
-        #                         timestamp=self.timestamp_normalize(msg['E']),
-        #                         receipt_timestamp=timestamp,
-        #                         position_amount=Decimal(position['pa']),
-        #                         entry_price=Decimal(position['ep']),
-        #                         unrealised_pnl=Decimal(position['up']))
-
         # to sync callback parameters @logan
         for balance in msg['a']['B']:
 
             bal = LoopyBalance(
                 exchange=self.id,
                 currency=balance['a'],
+                account=self.key_id,
                 balance=Decimal(balance['wb']),
                 cw_balance=Decimal(balance['cw']),
                 # how can get reserved balance...? @logan
                 reserved=Decimal(balance['wb']) - Decimal(0),
                 changed=Decimal(balance['bc']),
-                timestamp=self.timestamp_normalize(msg['E']),
-                raw=balance)
+                # timestamp=self.timestamp_normalize(msg['E'])
+                timestamp=float(msg['E'])
+                # raw=balance)
+            )
 
             await self.callback(BALANCES, bal, timestamp)
 
@@ -240,15 +227,18 @@ class LoopyBinanceFutures(BinanceFutures):
             pos = LoopyPosition(
                 exchange=self.id,
                 symbol=self.exchange_symbol_to_std_symbol(position['s']),
+                account=self.key_id,
                 margin_type=position['mt'],
-                side='long' if Decimal(position['pa']) > 0 else 'short' if Decimal(position['pa']) < 0 else position['ps'],
+                side='long' if Decimal(position['pa']) > 0 else 'short' if Decimal(position['pa']) < 0 else 'none',
                 # side=position['ps'],
                 entry_price=Decimal(position['ep']),
                 amount=Decimal(position['pa']),
                 unrealised_pnl=Decimal(position['up']),
                 cum_pnl=Decimal(position['cr']),
-                timestamp=self.timestamp_normalize(msg['E']),
-                raw=balance)
+                # timestamp=self.timestamp_normalize(msg['E'])
+                timestamp=float(msg['E'])
+                # raw=balance)
+            )
 
             await self.callback(POSITIONS, pos, timestamp)
 
@@ -296,11 +286,12 @@ class LoopyBinanceFutures(BinanceFutures):
             }
         }
         """
-        oi = OrderInfo(
+        oi = LoopyOrderInfo(
             exchange=self.id,
             symbol=self.exchange_symbol_to_std_symbol(msg['o']['s']),
             # in binance order id is number @logan
             id=str(msg['o']['i']),
+            account=self.key_id,
             # id=msg['o']['i'],
             side=BUY if msg['o']['S'].lower() == 'buy' else SELL,
             status=msg['o']['X'],  # order status is not excution type @logan
@@ -310,8 +301,9 @@ class LoopyBinanceFutures(BinanceFutures):
             # price=Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else None,
             amount=Decimal(msg['o']['q']),
             remaining=Decimal(msg['o']['q']) - Decimal(msg['o']['z']),
-            timestamp=self.timestamp_normalize(msg['E']),
-            raw=msg
+            # timestamp=self.timestamp_normalize(msg['E'])
+            timestamp=float(msg['E'])
+            # raw=msg
         )
         await self.callback(ORDER_INFO, oi, timestamp)
 
