@@ -42,10 +42,14 @@ define_macros.append(('CYTHON_WITHOUT_ASSERTIONS', None))
 extension = Extension("cryptofeed.types", ["cryptofeed/types.pyx"],
                       extra_compile_args=extra_compile_args,
                       define_macros=define_macros)
+# loopy_types extension @logan
+loopy_extension = Extension("cryptofeed.loopy_types", ["cryptofeed/loopy_types.pyx"],
+                      extra_compile_args=extra_compile_args,
+                      define_macros=define_macros)
 
 setup(
     name="cryptofeed",
-    ext_modules=cythonize([extension], language_level=3, force=True),
+    ext_modules=cythonize([extension, loopy_extension], language_level=3, force=True),
     version="2.1.0",
     author="Bryant Moscon",
     author_email="bmoscon@gmail.com",
