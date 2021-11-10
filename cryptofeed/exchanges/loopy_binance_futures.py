@@ -6,20 +6,20 @@ associated with this software.
 '''
 from decimal import Decimal
 import logging
+# import time
 from typing import List, Tuple, Callable, Dict
-
 from yapic import json
 
 from cryptofeed.connection import AsyncConnection #, HTTPPoll
 from cryptofeed.defines import (
     BALANCES, BINANCE_FUTURES, 
-    FUNDING, OPEN_INTEREST, ORDER_INFO, POSITIONS, ACCOUNT_CONFIG, 
+    TRADES, TICKER, FUNDING, OPEN_INTEREST, ORDER_INFO, POSITIONS, ACCOUNT_CONFIG, 
     POST,
     BUY, LIMIT, LIQUIDATIONS, MARKET, SELL, STOP_MARKET, STOP_LIMIT
 )
 # from cryptofeed.exchanges.binance import Binance
 # from cryptofeed.exchanges.mixins.binance_rest import BinanceFuturesRestMixin
-from cryptofeed.types import OpenInterest
+from cryptofeed.types import OpenInterest, Ticker, Trade
 from cryptofeed.loopy_types import LoopyOrderInfo, LoopyBalance, LoopyPosition
 from cryptofeed.exchanges.binance_futures import BinanceFutures
 
@@ -48,6 +48,8 @@ class LoopyBinanceFutures(BinanceFutures):
         'take_profit_market': 'TAKE_PROFIT_MARKET',
         'trailing_stop_market': 'TRAILING_STOP_MARKET'
     }
+    ticker_timestamp = 0
+    trade_timestamp = 0
 
     # ----------------------------------------------------------------------------------------
     # start user data stream @logan
@@ -102,6 +104,76 @@ class LoopyBinanceFutures(BinanceFutures):
 
         return ret
     """
+
+    async def _trade(self, msg: dict, timestamp: float):
+        """
+        {
+            "e": "aggTrade",  // Event type
+            "E": 123456789,   // Event time
+            "s": "BNBBTC",    // Symbol
+            "a": 12345,       // Aggregate trade ID
+            "p": "0.001",     // Price
+            "q": "100",       // Quantity
+            "f": 100,         // First trade ID
+            "l": 105,         // Last trade ID
+            "T": 123456785,   // Trade time
+            "m": true,        // Is the buyer the market maker?
+            "M": true         // Ignore
+        }
+        """
+        # check ticker frequency
+        if 'cache_write_wait' in self.config:
+            interval = timestamp - self.trade_timestamp
+            wait = self.config.cache_write_wait - interval
+            # LOG.info(f'binance futures ticker wait: {wait}')
+            if wait > 0:
+                return
+        
+        self.trade_timestamp = timestamp
+
+        t = Trade(self.id,
+                  self.exchange_symbol_to_std_symbol(msg['s']),
+                  SELL if msg['m'] else BUY,
+                  Decimal(msg['q']),
+                  Decimal(msg['p']),
+                  self.timestamp_normalize(msg['E']),
+                  id=str(msg['a']),
+                  raw=msg)
+        await self.callback(TRADES, t, timestamp)
+
+    async def _ticker(self, msg: dict, timestamp: float):
+        """
+        {
+            'u': 382569232,
+            's': 'FETUSDT',
+            'b': '0.36031000',
+            'B': '1500.00000000',
+            'a': '0.36092000',
+            'A': '176.40000000'
+        }
+        """
+        pair = self.exchange_symbol_to_std_symbol(msg['s'])
+        bid = Decimal(msg['b'])
+        ask = Decimal(msg['a'])
+
+        # Binance does not have a timestamp in this update, but the two futures APIs do
+        if 'E' in msg:
+            ts = self.timestamp_normalize(msg['E'])
+        else:
+            ts = timestamp
+
+        # check ticker frequency
+        if 'cache_write_wait' in self.config:
+            interval = timestamp - self.ticker_timestamp
+            wait = self.config.cache_write_wait - interval
+            # LOG.info(f'binance futures ticker wait: {wait}')
+            if wait > 0:
+                return
+        
+        self.ticker_timestamp = timestamp
+
+        t = Ticker(self.id, pair, bid, ask, ts, raw=msg)
+        await self.callback(TICKER, t, timestamp)
 
     # handle another user data stream... @logan
     async def _account_config_update(self, msg: dict, timestamp: float):
