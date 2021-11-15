@@ -15,7 +15,7 @@ from cryptofeed.defines import (
     BALANCES, BINANCE_FUTURES, 
     TRADES, TICKER, FUNDING, OPEN_INTEREST, ORDER_INFO, POSITIONS, ACCOUNT_CONFIG, 
     POST,
-    BUY, LIMIT, LIQUIDATIONS, MARKET, SELL, STOP_MARKET, STOP_LIMIT
+    BUY, LIMIT, LIQUIDATIONS, MARKET, SELL, STOP_MARKET, STOP_LIMIT, TRAILING_STOP_MARKET
 )
 # from cryptofeed.exchanges.binance import Binance
 # from cryptofeed.exchanges.mixins.binance_rest import BinanceFuturesRestMixin
@@ -44,9 +44,9 @@ class LoopyBinanceFutures(BinanceFutures):
         **BinanceFutures.order_options,
         STOP_LIMIT: 'STOP',
         STOP_MARKET: 'STOP_MARKET',
-        'take_profit': 'TAKE_PROFIT',
-        'take_profit_market': 'TAKE_PROFIT_MARKET',
-        'trailing_stop_market': 'TRAILING_STOP_MARKET'
+        'take-profit': 'TAKE_PROFIT',
+        'take-profit-market': 'TAKE_PROFIT_MARKET',
+        TRAILING_STOP_MARKET: 'TRAILING_STOP_MARKET'
     }
     ticker_timestamp = 0
     trade_timestamp = 0
@@ -422,9 +422,11 @@ class LoopyBinanceFutures(BinanceFutures):
             LOG.warning("%s: Unexpected message received: %s", self.id, msg)
 
     # for stop loss order... @logan
-    async def place_order(self, symbol: str, side: str, order_type: str, amount: Decimal, price=None, stop_price=None, closePosition=False,  time_in_force=None, test=False):
+    async def place_order(self, symbol: str, side: str, order_type: str, amount: Decimal, price=None, reduce_only=None, stop_price=None, close_position=False,  time_in_force=None, test=False):
         if (order_type == MARKET or order_type == STOP_MARKET) and price:
             raise ValueError('Cannot specify price on a market order')
+        if (order_type == TRAILING_STOP_MARKET) and (price or stop_price or time_force):
+            raise ValueError('Cannot specify price on a trailing stop market order')
         if order_type == LIMIT:
             if not price:
                 raise ValueError('Must specify price on a limit order')
@@ -447,20 +449,22 @@ class LoopyBinanceFutures(BinanceFutures):
             'side': 'BUY' if side is BUY else 'SELL',
             'type': ot,
             'quantity': str(amount),
-        }
+        } 
 
         if price:
             if order_type == STOP_MARKET:
                 parameters['stopPrice'] = str(price)
-                parameters['closePosition'] = closePosition
-            else:
+                # parameters['closePosition'] = close_position
+            elif order_type != TRAILING_STOP_MARKET:
                 parameters['price'] = str(price)
         if time_in_force:
             parameters['timeInForce'] = self.normalize_order_options(time_in_force)
         if stop_price:
             parameters['stopPrice'] = str(stop_price)
-        if order_type == STOP_MARKET:
-            parameters['closePosition'] = closePosition
+        if order_type == STOP_MARKET or order_type == STOP_LIMIT:
+            parameters['closePosition'] = close_position
+        if reduce_only and close_position != True:
+            parameters['reduceOnly'] = reduce_only
 
         data = await self._request(POST, 'test' if test else 'order', auth=True, payload=parameters)
         return data
