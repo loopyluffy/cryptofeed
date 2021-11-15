@@ -50,7 +50,7 @@ loopy_extension = Extension("cryptofeed.loopy_types", ["cryptofeed/loopy_types.p
 setup(
     name="cryptofeed",
     ext_modules=cythonize([extension, loopy_extension], language_level=3, force=True),
-    version="2.1.0",
+    version="2.1.1",
     author="Bryant Moscon",
     author_email="bmoscon@gmail.com",
     description="Cryptocurrency Exchange Websocket Data Feed Handler",
