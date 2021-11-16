@@ -91,7 +91,9 @@ MAKER_OR_CANCEL = 'maker-or-cancel'
 FILL_OR_KILL = 'fill-or-kill'
 IMMEDIATE_OR_CANCEL = 'immediate-or-cancel'
 GOOD_TIL_CANCELED = 'good-til-canceled'
-# @logan 
+# @logan
+TAKE_PROFIT_LIMIT = 'take-profit-limit'
+TAKE_PROFIT_MARKET = 'take-profit-market'
 TRAILING_STOP_MARKET = 'trailing-stop-market'
 
 OPEN = 'open'
