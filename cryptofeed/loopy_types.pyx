@@ -83,25 +83,26 @@ cdef class OrderInfo:
 cdef class LoopyOrderInfo(OrderInfo):
     cdef readonly str account
     cdef readonly str position
+    cdef readonly object condition_price
 
-    def __init__(self, exchange, symbol, id, account, side, status, type, price, amount, remaining, timestamp, position=None, raw=None):
+    def __init__(self, exchange, symbol, id, account, side, status, type, price, amount, remaining, timestamp, condition_price=None, position=None, raw=None):
+        assert condition_price is None or isinstance(condition_price, Decimal)
+
         super().__init__(exchange, symbol, id, side, status, type, price, amount, remaining, timestamp, raw)
 
         self.account = convert_hash(account)
-        if position is None:
-            self.position = self.account
-        else:
-            self.position = position
+        self.condition_price = condition_price if condition_price is not None else 0
+        self.position = position if position is not None else self.account 
 
     cpdef dict to_dict(self, numeric_type=None, none_to=False):
         if numeric_type is None:
-            data = {'exchange': self.exchange, 'symbol': self.symbol, 'id': self.id, 'account': self.account, 'position': self.position, 'side': self.side, 'status': self.status, 'type': self.type, 'price': self.price, 'amount': self.amount, 'remaining': self.remaining, 'timestamp': self.timestamp}
+            data = {'exchange': self.exchange, 'symbol': self.symbol, 'id': self.id, 'account': self.account, 'position': self.position, 'side': self.side, 'status': self.status, 'type': self.type, 'price': self.price, 'amount': self.amount, 'remaining': self.remaining, 'condition_price': self.condition_price, 'timestamp': self.timestamp}
         else:
-            data = {'exchange': self.exchange, 'symbol': self.symbol, 'id': self.id, 'account': self.account, 'position': self.position, 'side': self.side, 'status': self.status, 'type': self.type, 'price': numeric_type(self.price), 'amount': numeric_type(self.amount), 'remaining': numeric_type(self.remaining), 'timestamp': self.timestamp}
+            data = {'exchange': self.exchange, 'symbol': self.symbol, 'id': self.id, 'account': self.account, 'position': self.position, 'side': self.side, 'status': self.status, 'type': self.type, 'price': numeric_type(self.price), 'amount': numeric_type(self.amount), 'remaining': numeric_type(self.remaining), 'condition_price': numeric_type(self.condition_price), 'timestamp': self.timestamp}
         return data if not none_to else convert_none_values(data, none_to)
 
     def __repr__(self):
-        return f'exchange: {self.exchange} symbol: {self.symbol} id: {self.id} account: {self.account} position: {self.position} side: {self.side} status: {self.status} type: {self.type} price: {self.price} amount: {self.amount} remaining: {self.remaining} timestamp: {self.timestamp}'
+        return f'exchange: {self.exchange} symbol: {self.symbol} id: {self.id} account: {self.account} position: {self.position} side: {self.side} status: {self.status} type: {self.type} price: {self.price} amount: {self.amount} remaining: {self.remaining} condition_price: {self.condition_price} timestamp: {self.timestamp}'
 
 
 cdef class Balance:

@@ -367,10 +367,11 @@ class LoopyBinanceFutures(BinanceFutures):
             # id=msg['o']['i'],
             side=BUY if msg['o']['S'].lower() == 'buy' else SELL,
             status=msg['o']['X'],  # order status is not excution type @logan
-            type=LIMIT if msg['o']['o'].lower() == 'limit' else MARKET if msg['o']['o'].lower() == 'market' else STOP_LIMIT if msg['o']['o'].lower() == 'stop' else STOP_MARKET if msg['o']['o'].lower() == 'stop_market' else None,
+            type=LIMIT if msg['o']['o'].lower() == 'limit' else MARKET if msg['o']['o'].lower() == 'market' else STOP_LIMIT if msg['o']['o'].lower() == 'stop' else STOP_MARKET if msg['o']['o'].lower() == 'stop_market' else TRAILING_STOP_MARKET if msg['o']['o'].lower() == 'trailing_stop_market' else msg['o']['o'],
             # if never partially filled, price is original price... @logan
             price=Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else Decimal(msg['o']['p']),
             # price=Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else None,
+            condition_price=Decimal(msg['o']['sp']) if msg['o']['o'].lower() == 'stop_market' else Decimal(msg['o']['AP']) if msg['o']['o'].lower() == 'trailing_stop_market' else Decimal(msg['o']['p']),
             amount=Decimal(msg['o']['q']),
             remaining=Decimal(msg['o']['q']) - Decimal(msg['o']['z']),
             # timestamp=self.timestamp_normalize(msg['E'])

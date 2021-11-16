@@ -168,6 +168,7 @@ class LoopyOrderInfoKafka(LoopyAvroKafkaCallback, BackendCallback):
                     {"name": "status", "type": "string"},
                     {"name": "type", "type": "string"},
                     {"name": "price", "type": "float"},
+                    {"name": "condition_price", "type": "float"},
                     {"name": "amount", "type": "float"},
                     {"name": "remaining", "type": "float"},
                     {"name": "timestamp", "type": "float"},
