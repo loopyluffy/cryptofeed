@@ -14,6 +14,7 @@ from .binance_delivery import BinanceDelivery
 from .binance_futures import BinanceFutures
 # @logan
 from .loopy_binance_futures import LoopyBinanceFutures
+from .loopy_binance_delivery import LoopyBinanceDelivery
 from .binance_us import BinanceUS
 from .fmfw import FMFW
 from .bitfinex import Bitfinex
@@ -49,10 +50,11 @@ from .upbit import Upbit
 EXCHANGE_MAP = {
     ASCENDEX: AscendEX,
     BEQUANT: Bequant,
-    BINANCE_DELIVERY: BinanceDelivery,
     # @logan
+    # BINANCE_DELIVERY: BinanceDelivery,
     # BINANCE_FUTURES: BinanceFutures,
     BINANCE_FUTURES: LoopyBinanceFutures,
+    BINANCE_DELIVERY: LoopyBinanceDelivery,
     BINANCE_US: BinanceUS,
     BINANCE: Binance,
     FMFW_str: FMFW,

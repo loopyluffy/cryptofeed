@@ -12,7 +12,8 @@ from yapic import json
 
 from cryptofeed.connection import AsyncConnection #, HTTPPoll
 from cryptofeed.defines import (
-    BALANCES, BINANCE_FUTURES, 
+    BALANCES, BINANCE_DELIVERY,
+    PERPETUAL, FUTURES, SPOT, 
     TRADES, TICKER, FUNDING, OPEN_INTEREST, ORDER_INFO, POSITIONS, ACCOUNT_CONFIG, 
     POST,
     BUY, LIMIT, LIQUIDATIONS, MARKET, SELL, STOP_MARKET, STOP_LIMIT, TAKE_PROFIT_MARKET, TAKE_PROFIT_LIMIT, TRAILING_STOP_MARKET
@@ -21,13 +22,14 @@ from cryptofeed.defines import (
 # from cryptofeed.exchanges.mixins.binance_rest import BinanceFuturesRestMixin
 from cryptofeed.types import OpenInterest, Ticker, Trade
 from cryptofeed.loopy_types import LoopyOrderInfo, LoopyBalance, LoopyPosition
-from cryptofeed.exchanges.binance_futures import BinanceFutures
+from cryptofeed.exchanges.binance_delivery import BinanceDelivery
+from cryptofeed.symbols import Symbol, Symbols
 
 LOG = logging.getLogger('feedhandler')
 
 
-class LoopyBinanceFutures(BinanceFutures):
-    id = BINANCE_FUTURES
+class LoopyBinanceDelivery(BinanceDelivery):
+    id = BINANCE_DELIVERY
     # websocket_channels = {
     #     **Binance.websocket_channels,
     #     FUNDING: 'markPrice',
@@ -41,7 +43,7 @@ class LoopyBinanceFutures(BinanceFutures):
     #     # 'userData': 'userData'
     # }
     order_options = {
-        **BinanceFutures.order_options,
+        **BinanceDelivery.order_options,
         STOP_LIMIT: 'STOP',
         STOP_MARKET: 'STOP_MARKET',
         TAKE_PROFIT_LIMIT: 'TAKE_PROFIT',
@@ -51,59 +53,54 @@ class LoopyBinanceFutures(BinanceFutures):
     ticker_timestamp = 0
     trade_timestamp = 0
 
-    # ----------------------------------------------------------------------------------------
-    # start user data stream @logan
-    # deprecated for update of @mboscon
-    """
-    async def _start_user_data_stream(self):
-        from cryptofeed.defines import POST
+    @classmethod
+    # def _parse_symbol_data(cls, data: dict) -> Tuple[Dict, Dict]:
+    #     ret = {}
+    #     info = defaultdict(dict)
+    #     for symbol in data['symbols']:
+    #         if symbol.get('status', 'TRADING') != "TRADING":
+    #             continue
+    #         if symbol.get('contractStatus', 'TRADING') != "TRADING":
+    #             continue
 
-        data = await self._request(POST, 'listenKey', auth=True)
-        self.websocket_channels['userData'] = data['listenKey'] 
-        # return data['listenKey']
+    #         expiration = None
+    #         stype = SPOT
+    #         if symbol.get('contractType') == 'PERPETUAL':
+    #             stype = PERPETUAL
+    #         elif symbol.get('contractType') in ('CURRENT_QUARTER', 'NEXT_QUARTER'):
+    #             stype = FUTURES
+    #             expiration = symbol['symbol'].split("_")[1]
 
-    async def subscribe(self, conn: AsyncConnection):
-        await super().subscribe(conn)
+    #         s = Symbol(symbol['baseAsset'], symbol['quoteAsset'], type=stype, expiry_date=expiration)
+    #         ret[s.normalized] = symbol['symbol']
+    #         info['tick_size'][s.normalized] = symbol['filters'][0]['tickSize']
+    #         info['instrument_type'][s.normalized] = stype
+    #     return ret, info
+    # multiplier added in exchange info
+    def _parse_symbol_data(cls, data: dict) -> Tuple[Dict, Dict]:
+        base, info = super()._parse_symbol_data(data)
+        add = {}
+        add['multiplier'] = {}
+        for symbol in data['symbols']:
+            if symbol.get('status', 'TRADING') != "TRADING":
+                continue
+            if symbol.get('contractStatus', 'TRADING') != "TRADING":
+                continue
 
-        if self.subscription is not None:
-            for channel in self.subscription:
-                # chan = self.std_channel_to_exchange(channel)
-                if channel == 'userData':
-                    await self._start_user_data_stream()    
-    
-    # ----------------------------------------------------------------------------------------
+            expiration = None
+            stype = SPOT
+            if symbol.get('contractType') == 'PERPETUAL':
+                stype = PERPETUAL
+            elif symbol.get('contractType') in ('CURRENT_QUARTER', 'NEXT_QUARTER'):
+                stype = FUTURES
+                expiration = symbol['symbol'].split("_")[1]
 
-    def connect(self) -> List[Tuple[AsyncConnection, Callable[[None], None], Callable[[str, float], None]]]:
-        ret = []
-        if self.address:
-            ret = super().connect()
-        PollCls = HTTPPoll
-        for chan in set(self.subscription):
-            if chan == 'open_interest':
-                addrs = [f"{self.rest_endpoint}/openInterest?symbol={pair}" for pair in self.subscription[chan]]
-                ret.append((PollCls(addrs, self.id, delay=60.0, sleep=self.open_interest_interval, proxy=self.http_proxy), self.subscribe, self.message_handler, self.authenticate))
-
-        # ----------------------------------------------------------------------------------------
-        # connect another socket for user data stream... @logan
-        # deprecated for update of @mboscon
-        
-        from cryptofeed.connection import WSAsyncConn # AsyncConnection, HTTPAsyncConn, 
-
-        if self.subscription is not None:
-            for channel in self.subscription:
-                # chan = self.std_channel_to_exchange(channel)
-                if channel == 'userData':
-                    # address = self.ws_endpoint + '/ws/rUzZ3D0gsNR8Yl5QbI1Opk2z8oXIjIHCoPoEgFYr7fI5VZievgsrYdoHOUAEoTqQ'
-                    # address = f"{self.ws_endpoint}/ws/JEI6zo112RvYorpuhGZ16hhkoC7HkThoPqromIUwRlMGerraTERNmDmiowHrSbxA"
-                    # task = create_task(self._start_user_data_stream())
-                    # data = await task
-                    address = self.ws_endpoint + '/ws/' + self.websocket_channels['userData']
-                    ret.append((WSAsyncConn(address, self.id, **self.ws_defaults), self.subscribe, self.message_handler, self.authenticate))
-
-        # ----------------------------------------------------------------------------------------
-
-        return ret
-    """
+            s = Symbol(symbol['baseAsset'], symbol['quoteAsset'], type=stype, expiry_date=expiration)
+            if symbol.get('contractSize'):
+                add['multiplier'][s.normalized] = symbol.get('contractSize') 
+                
+        info.update(add)
+        return base, info
 
     async def _trade(self, msg: dict, timestamp: float):
         """

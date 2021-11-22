@@ -26,14 +26,19 @@ import pyximport
 pyximport.install()
 
 import asyncio
+import aiohttp
 
 from cryptofeed import FeedHandler
-from cryptofeed.defines import BALANCES, BINANCE_FUTURES, BUY, FUNDING, LIMIT, LIQUIDATIONS, MARKET, OPEN_INTEREST, ORDER_INFO, POSITIONS, SELL, ACCOUNT_CONFIG, STOP_MARKET, STOP_LIMIT
-from cryptofeed.exchanges import Binance, BinanceDelivery, BinanceFutures, LoopyBinanceFutures
+from cryptofeed.defines import (BALANCES, BINANCE_FUTURES, BINANCE_DELIVERY,
+                                FUNDING, LIQUIDATIONS, OPEN_INTEREST, ORDER_INFO, POSITIONS, ACCOUNT_CONFIG,
+                                BUY, LIMIT, MARKET, SELL, STOP_MARKET, STOP_LIMIT)
+from cryptofeed.exchanges import Binance, LoopyBinanceDelivery, LoopyBinanceFutures
+
+from cryptofeed.symbols import Symbol, Symbols
 
 
-# info = BinanceDelivery.info()
-info = BinanceFutures.info()
+delivery_info = LoopyBinanceDelivery.info()
+futures_info = LoopyBinanceFutures.info()
 
 
 async def abook(book, receipt_timestamp):
@@ -84,18 +89,41 @@ async def main():
     # USER_DATA = 'userData'
 
     binance_futures = LoopyBinanceFutures(config=path_to_config)
+    print(BINANCE_FUTURES)
+    print(futures_info)
     # print(binance_futures.balances_sync())
     # print(binance_futures.orders_sync())
     # print(binance_futures.positions_sync())
-    # order = binance_futures.place_order_sync('ETH-USDT-PERP', SELL, LIMIT, 0.004, 5000, time_in_force=GOOD_TIL_CANCELED)
-    order = await asyncio.create_task(binance_futures.place_order(symbol='ETH-USDT-PERP', side=BUY, order_type=STOP_MARKET, amount=0, stop_price=4165, closePosition=True))
-    # print(binance_futures.orders_sync(symbol='BTC-USDT-PERP'))
-    # print(binance_futures.orders_sync(symbol='ETH-USDT-PERP'))
-    print(order)
-    # print(binance_futures.cancel_order_sync(order['orderId'], symbol='ETH-USDT-PERP'))
-    # print(binance_futures.orders_sync(symbol='ETH-USDT-PERP'))
+    # try:
+    #     # order = binance_futures.place_order_sync('ETH-USDT-PERP', SELL, LIMIT, 0.004, 5000, time_in_force=GOOD_TIL_CANCELED)
+    #     order = await asyncio.create_task(binance_futures.place_order(symbol='BTC-USDT-PERP', side=BUY, order_type=STOP_MARKET, amount=0.001, stop_price=50000))
+    #     # print(binance_futures.orders_sync(symbol='BTC-USDT-PERP'))
+    #     # print(binance_futures.orders_sync(symbol='ETH-USDT-PERP'))
+    #     print(order)
+    #     # print(binance_futures.cancel_order_sync(order['orderId'], symbol='ETH-USDT-PERP'))
+    #     # print(binance_futures.orders_sync(symbol='ETH-USDT-PERP'))
+    # except Exception as e:
+    # # except aiohttp.client_exceptions.ClientResponseError as e:
+    #     if e.status == 400:
+    #         print(e)
+    #         order = await asyncio.create_task(binance_futures.place_order(symbol='BTC-USDT-PERP', side=BUY, order_type=STOP_MARKET, amount=0.001, stop_price=70000))
+    #     else:
+    #         print('exception not 400..')
+    # except aiohttp.client_exceptions.ClientResponseError as e:
+    #     print(e)
 
-    # binance_delivery = BinanceDelivery(config=path_to_config)
+    # print('reach here??')
+    # except aiohttp.client_exceptions.ClientResponseError as e:
+    #     if e.status == 409:  # Subscription exists
+    #         pass
+    #     else:
+    #         raise TypeError("Please set the GCP_PROJECT environment variable") from e
+
+    binance_delivery = LoopyBinanceDelivery(config=path_to_config)
+    print(BINANCE_DELIVERY)
+    print(delivery_info)
+    # print(Symbols.get(BINANCE_DELIVERY))
+
     # print(binance_delivery.balances_sync())
     # print(binance_delivery.orders_sync())
     # print(binance_delivery.positions_sync())

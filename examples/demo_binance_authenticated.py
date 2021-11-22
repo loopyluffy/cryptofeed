@@ -40,7 +40,7 @@ def main():
 
     # binance = Binance(config=path_to_config, subscription={BALANCES: []}, timeout=-1, callbacks={BALANCES: balance, ORDER_INFO: order_info})
     # binance_delivery = BinanceDelivery(config=path_to_config, subscription={BALANCES: [], POSITIONS: []}, timeout=-1, callbacks={BALANCES: balance, POSITIONS: position, ORDER_INFO: order_info})
-    binance_futures = BinanceFutures(config=path_to_config, subscription={BALANCES: [], POSITIONS: []}, timeout=-1, callbacks={BALANCES: balance, POSITIONS: position, ORDER_INFO: order_info, ACCOUNT_CONFIG: account_config})
+    # binance_futures = BinanceFutures(config=path_to_config, subscription={BALANCES: [], POSITIONS: []}, timeout=-1, callbacks={BALANCES: balance, POSITIONS: position, ORDER_INFO: order_info, ACCOUNT_CONFIG: account_config})
     # binance_futures = BinanceFutures(config=path_to_config, subscription={BALANCES: [], POSITIONS: []}, timeout=-1, callbacks={BALANCES: balance, POSITIONS: position, ORDER_INFO: order_info})
     # binance = Binance(config=path_to_config, subscription={BALANCES: [], ORDER_INFO: []}, timeout=-1, callbacks={BALANCES: balance, ORDER_INFO: order_info})
     # binance_delivery = BinanceDelivery(config=path_to_config, subscription={BALANCES: [], POSITIONS: [], ORDER_INFO: []}, timeout=-1, callbacks={BALANCES: balance, POSITIONS: position, ORDER_INFO: order_info})
