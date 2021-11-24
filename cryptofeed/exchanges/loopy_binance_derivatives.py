@@ -12,7 +12,7 @@ from yapic import json
 
 from cryptofeed.connection import AsyncConnection #, HTTPPoll
 from cryptofeed.defines import (
-    BALANCES, BINANCE_FUTURES, 
+    BALANCES, BINANCE_FUTURES, BINANCE_DELIVERY,
     PERPETUAL, FUTURES, SPOT, 
     TRADES, TICKER, FUNDING, OPEN_INTEREST, ORDER_INFO, POSITIONS, ACCOUNT_CONFIG, 
     POST,
@@ -28,7 +28,8 @@ from cryptofeed.symbols import Symbol, Symbols
 LOG = logging.getLogger('feedhandler')
 
 
-class LoopyBinanceFutures(BinanceFutures):
+class LoopyBinanceDerivatives(BinanceFutures):
+# class LoopyBinanceFutures(LoopyBinanceDerivatives):
     id = BINANCE_FUTURES
     # websocket_channels = {
     #     **Binance.websocket_channels,
@@ -52,40 +53,6 @@ class LoopyBinanceFutures(BinanceFutures):
     }
     ticker_timestamp = 0
     trade_timestamp = 0
-
-    # some infoes added in exchange info
-    @classmethod
-    def _parse_symbol_data(cls, data: dict) -> Tuple[Dict, Dict]:
-        base, info = super()._parse_symbol_data(data)
-        add = {}
-        add['multiplier'] = {}
-        add['pricePrecision'] = {}
-        add['quantityPrecision'] = {}
-
-        for symbol in data['symbols']:
-            if symbol.get('status', 'TRADING') != "TRADING":
-                continue
-            if symbol.get('contractStatus', 'TRADING') != "TRADING":
-                continue
-
-            expiration = None
-            stype = SPOT
-            if symbol.get('contractType') == 'PERPETUAL':
-                stype = PERPETUAL
-            elif symbol.get('contractType') in ('CURRENT_QUARTER', 'NEXT_QUARTER'):
-                stype = FUTURES
-                expiration = symbol['symbol'].split("_")[1]
-
-            s = Symbol(symbol['baseAsset'], symbol['quoteAsset'], type=stype, expiry_date=expiration)
-            if symbol.get('contractSize'):
-                add['multiplier'][s.normalized] = symbol.get('contractSize') 
-            if symbol.get('pricePrecision'):
-                add['pricePrecision'][s.normalized] = symbol.get('pricePrecision') 
-            if symbol.get('quantityPrecision'):
-                add['quantityPrecision'][s.normalized] = symbol.get('quantityPrecision') 
-                
-        info.update(add)
-        return base, info
 
     # ----------------------------------------------------------------------------------------
     # start user data stream @logan
@@ -477,7 +444,7 @@ class LoopyBinanceFutures(BinanceFutures):
             raise ValueError('Cannot specify price on a market order')
         # if (order_type == TRAILING_STOP_MARKET) and (price or stop_price or time_force):
         # use stop_price for activation_price
-        if (order_type == TRAILING_STOP_MARKET) and (price or time_in_force):
+        if (order_type == TRAILING_STOP_MARKET) and (price or time_force):
             raise ValueError('Cannot specify price on a trailing stop market order')
         if order_type == TRAILING_STOP_MARKET:
             if price or time_in_force:
@@ -513,22 +480,3 @@ class LoopyBinanceFutures(BinanceFutures):
 
         data = await self._request(POST, 'test' if test else 'order', auth=True, payload=parameters)
         return data
-
-    # support contract precision
-    def get_precision_order_price(self, symbol, price):
-        info = self.info()
-        if 'pricePrecision' in info and symbol in info['pricePrecision']:
-            price_precision = info['pricePrecision'][symbol]
-            return round(price, price_precision)
-        else:
-            return price
-
-    def get_precision_order_quantity(self, symbol, quantity):
-        info = self.info()
-        if 'quantityPrecision' in info and symbol in info['quantityPrecision']:
-            quantity_precision = self.info()['quantityPrecision'][symbol]
-            return round(quantity, quantity_precision)
-        else:
-            return quantity
-
-

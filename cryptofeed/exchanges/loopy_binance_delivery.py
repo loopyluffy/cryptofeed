@@ -76,11 +76,14 @@ class LoopyBinanceDelivery(BinanceDelivery):
     #         info['tick_size'][s.normalized] = symbol['filters'][0]['tickSize']
     #         info['instrument_type'][s.normalized] = stype
     #     return ret, info
-    # multiplier added in exchange info
+    # some infoes added in exchange info
     def _parse_symbol_data(cls, data: dict) -> Tuple[Dict, Dict]:
         base, info = super()._parse_symbol_data(data)
         add = {}
         add['multiplier'] = {}
+        add['pricePrecision'] = {}
+        add['quantityPrecision'] = {}
+        
         for symbol in data['symbols']:
             if symbol.get('status', 'TRADING') != "TRADING":
                 continue
@@ -98,6 +101,10 @@ class LoopyBinanceDelivery(BinanceDelivery):
             s = Symbol(symbol['baseAsset'], symbol['quoteAsset'], type=stype, expiry_date=expiration)
             if symbol.get('contractSize'):
                 add['multiplier'][s.normalized] = symbol.get('contractSize') 
+            if symbol.get('pricePrecision'):
+                add['pricePrecision'][s.normalized] = symbol.get('pricePrecision') 
+            if symbol.get('quantityPrecision'):
+                add['quantityPrecision'][s.normalized] = symbol.get('quantityPrecision') 
                 
         info.update(add)
         return base, info
@@ -419,26 +426,32 @@ class LoopyBinanceDelivery(BinanceDelivery):
         else:
             LOG.warning("%s: Unexpected message received: %s", self.id, msg)
 
-    # for stop loss order... @logan
-    async def place_order(self, symbol: str, side: str, order_type: str, amount: Decimal, price=None, reduce_only=None, stop_price=None, close_position=False,  time_in_force=None, test=False):
-        if (order_type == MARKET or order_type == STOP_MARKET or order_type == TAKE_PROFIT_MARKET) and price:
-            raise ValueError('Cannot specify price on a market order')
-        if (order_type == TRAILING_STOP_MARKET) and (price or stop_price or time_force):
-            raise ValueError('Cannot specify price on a trailing stop market order')
+    # for various option orders... @logan
+    async def place_order(self, symbol: str, side: str, order_type: str, amount: Decimal, price=None, reduce_only=None, stop_price=None, close_position=False,  time_in_force=None, callback_rate=None, test=False):
         if order_type == LIMIT:
             if not price:
                 raise ValueError('Must specify price on a limit order')
             if not time_in_force:
                 raise ValueError('Must specify time in force on a limit order') 
-        if order_type == STOP_MARKET or order_type == TAKE_PROFIT_MARKET:
-            if not stop_price:
-                raise ValueError('Must specify stop_price on a stop market order')
         if order_type == STOP_LIMIT or order_type == TAKE_PROFIT_LIMIT:
             if not price:
                 raise ValueError('Must specify price on a stop order')
             if not stop_price:
                 raise ValueError('Must specify stop_price on a stop order')
-                
+        if order_type == STOP_MARKET or order_type == TAKE_PROFIT_MARKET:
+            if not stop_price:
+                raise ValueError('Must specify stop_price on a stop market order')
+        if (order_type == MARKET or order_type == STOP_MARKET or order_type == TAKE_PROFIT_MARKET) and price:
+            raise ValueError('Cannot specify price on a market order')
+        # if (order_type == TRAILING_STOP_MARKET) and (price or stop_price or time_force):
+        # use stop_price for activation_price
+        if (order_type == TRAILING_STOP_MARKET) and (price or time_in_force):
+            raise ValueError('Cannot specify price on a trailing stop market order')
+        if order_type == TRAILING_STOP_MARKET:
+            if price or time_in_force:
+                raise ValueError('Cannot specify price or time in force on a trailing stop market order')
+            if not callback_rate:
+                raise ValueError('Must specify callbackRate on a trailing stop market order')             
             
         ot = self.normalize_order_options(order_type)
         sym = self.std_symbol_to_exchange_symbol(symbol)
@@ -463,6 +476,25 @@ class LoopyBinanceDelivery(BinanceDelivery):
             parameters['closePosition'] = close_position
         if reduce_only and close_position != True:
             parameters['reduceOnly'] = reduce_only
+        if order_type == TRAILING_STOP_MARKET:
+            parameters['callbackRate'] = callback_rate
 
         data = await self._request(POST, 'test' if test else 'order', auth=True, payload=parameters)
         return data
+
+    # support contract precision
+    def get_precision_order_price(self, symbol, price):
+        info = self.info()
+        if 'pricePrecision' in info and symbol in info['pricePrecision']:
+            price_precision = info['pricePrecision'][symbol]
+            return round(price, price_precision)
+        else:
+            return price
+
+    def get_precision_order_quantity(self, symbol, quantity):
+        info = self.info()
+        if 'quantityPrecision' in info and symbol in info['quantityPrecision']:
+            quantity_precision = self.info()['quantityPrecision'][symbol]
+            return round(quantity, quantity_precision)
+        else:
+            return quantity
