@@ -12,64 +12,56 @@ from yapic import json
 
 from cryptofeed.connection import AsyncConnection #, HTTPPoll
 from cryptofeed.defines import (
-    BALANCES, BINANCE_FUTURES, BINANCE_DELIVERY,
+    BALANCES, BINANCE_FUTURES, 
     PERPETUAL, FUTURES, SPOT, 
-    TRADES, TICKER, FUNDING, OPEN_INTEREST, ORDER_INFO, POSITIONS, ACCOUNT_CONFIG, CANDLES,
-    POST, DELETE, GET,
-    ORDER_STATUS, CANCEL_ORDER, PLACE_ORDER, ORDERS,
-    FILL_OR_KILL, GOOD_TIL_CANCELED, IMMEDIATE_OR_CANCEL,
+    TRADES, TICKER, FUNDING, OPEN_INTEREST, ORDER_INFO, POSITIONS, ACCOUNT_CONFIG, 
+    POST,
     BUY, LIMIT, LIQUIDATIONS, MARKET, SELL, STOP_MARKET, STOP_LIMIT, TAKE_PROFIT_MARKET, TAKE_PROFIT_LIMIT, TRAILING_STOP_MARKET
 )
+# from cryptofeed.exchanges.binance import Binance
+# from cryptofeed.exchanges.mixins.binance_rest import BinanceFuturesRestMixin
 from cryptofeed.types import OpenInterest, Ticker, Trade
 from cryptofeed.loopy_types import LoopyOrderInfo, LoopyBalance, LoopyPosition
-from cryptofeed.exchanges.binance import Binance
-from cryptofeed.exchanges.mixins.binance_rest import BinanceRestMixin
+from cryptofeed.exchanges.binance_futures import BinanceFutures
 from cryptofeed.symbols import Symbol, Symbols
 
 LOG = logging.getLogger('feedhandler')
 
 
-class LoopyBinanceDerivatives(Binance, BinanceRestMixin):
-    listen_key_endpoint = 'listenKey'
-    valid_depths = [5, 10, 20, 50, 100, 500, 1000]
-    valid_depth_intervals = {'100ms', '250ms', '500ms'}
+class LoopyBinanceFutures(BinanceFutures):
+    id = BINANCE_FUTURES
+    # websocket_channels = {
+    #     **Binance.websocket_channels,
+    #     FUNDING: 'markPrice',
+    #     OPEN_INTEREST: 'open_interest',
+    #     LIQUIDATIONS: 'forceOrder',
+    #     POSITIONS: POSITIONS
+
+    #     # authenticated channel test @logan
+    #     # deprecated for update of @mboscon
+    #     # BALANCES: 'JEI6zo112RvYorpuhGZ16hhkoC7HkThoPqromIUwRlMGerraTERNmDmiowHrSbxA'
+    #     # 'userData': 'userData'
+    # }
     order_options = {
-        **BinanceRestMixin.order_options,
+        **BinanceFutures.order_options,
         STOP_LIMIT: 'STOP',
         STOP_MARKET: 'STOP_MARKET',
         TAKE_PROFIT_LIMIT: 'TAKE_PROFIT',
         TAKE_PROFIT_MARKET: 'TAKE_PROFIT_MARKET',
         TRAILING_STOP_MARKET: 'TRAILING_STOP_MARKET'
     }
-    rest_channels = (
-        TRADES, ORDER_STATUS, CANCEL_ORDER, PLACE_ORDER, BALANCES, ORDERS, POSITIONS
-    )
-    websocket_channels = {
-        **Binance.websocket_channels,
-        FUNDING: 'markPrice',
-        OPEN_INTEREST: 'open_interest',
-        LIQUIDATIONS: 'forceOrder',
-        POSITIONS: POSITIONS
-    }
     ticker_timestamp = 0
     trade_timestamp = 0
 
+    # some infoes added in exchange info
     @classmethod
     def _parse_symbol_data(cls, data: dict) -> Tuple[Dict, Dict]:
         base, info = super()._parse_symbol_data(data)
-
-        base_add = {}
-        for symbol, orig in base.items():
-            if "_" in orig:
-                continue
-            base_add[f"{symbol.replace('PERP', 'PINDEX')}"] = f"p{orig}"
-        base.update(base_add)
-
         add = {}
         add['multiplier'] = {}
         add['pricePrecision'] = {}
         add['quantityPrecision'] = {}
-        
+
         for symbol in data['symbols']:
             if symbol.get('status', 'TRADING') != "TRADING":
                 continue
@@ -87,29 +79,84 @@ class LoopyBinanceDerivatives(Binance, BinanceRestMixin):
             s = Symbol(symbol['baseAsset'], symbol['quoteAsset'], type=stype, expiry_date=expiration)
             if symbol.get('contractSize'):
                 add['multiplier'][s.normalized] = symbol.get('contractSize') 
-            if 'pricePrecision' in symbol:
+            if symbol.get('pricePrecision'):
                 add['pricePrecision'][s.normalized] = symbol.get('pricePrecision') 
-            if 'quantityPrecision' in symbol: 
+            if symbol.get('quantityPrecision'):
                 add['quantityPrecision'][s.normalized] = symbol.get('quantityPrecision') 
                 
         info.update(add)
         return base, info
 
-    def _check_update_id(self, pair: str, msg: dict) -> bool:
-        if self._l2_book[pair].delta is None and msg['u'] < self.last_update_id[pair]:
-            return True
-        elif msg['U'] <= self.last_update_id[pair] <= msg['u']:
-            self.last_update_id[pair] = msg['u']
-            return False
-        elif self.last_update_id[pair] == msg['pu']:
-            self.last_update_id[pair] = msg['u']
-            return False
-        else:
-            self._reset()
-            LOG.warning("%s: Missing book update detected, resetting book", self.id)
-            return True
+    # ----------------------------------------------------------------------------------------
+    # start user data stream @logan
+    # deprecated for update of @mboscon
+    """
+    async def _start_user_data_stream(self):
+        from cryptofeed.defines import POST
+
+        data = await self._request(POST, 'listenKey', auth=True)
+        self.websocket_channels['userData'] = data['listenKey'] 
+        # return data['listenKey']
+
+    async def subscribe(self, conn: AsyncConnection):
+        await super().subscribe(conn)
+
+        if self.subscription is not None:
+            for channel in self.subscription:
+                # chan = self.std_channel_to_exchange(channel)
+                if channel == 'userData':
+                    await self._start_user_data_stream()    
+    
+    # ----------------------------------------------------------------------------------------
+
+    def connect(self) -> List[Tuple[AsyncConnection, Callable[[None], None], Callable[[str, float], None]]]:
+        ret = []
+        if self.address:
+            ret = super().connect()
+        PollCls = HTTPPoll
+        for chan in set(self.subscription):
+            if chan == 'open_interest':
+                addrs = [f"{self.rest_endpoint}/openInterest?symbol={pair}" for pair in self.subscription[chan]]
+                ret.append((PollCls(addrs, self.id, delay=60.0, sleep=self.open_interest_interval, proxy=self.http_proxy), self.subscribe, self.message_handler, self.authenticate))
+
+        # ----------------------------------------------------------------------------------------
+        # connect another socket for user data stream... @logan
+        # deprecated for update of @mboscon
+        
+        from cryptofeed.connection import WSAsyncConn # AsyncConnection, HTTPAsyncConn, 
+
+        if self.subscription is not None:
+            for channel in self.subscription:
+                # chan = self.std_channel_to_exchange(channel)
+                if channel == 'userData':
+                    # address = self.ws_endpoint + '/ws/rUzZ3D0gsNR8Yl5QbI1Opk2z8oXIjIHCoPoEgFYr7fI5VZievgsrYdoHOUAEoTqQ'
+                    # address = f"{self.ws_endpoint}/ws/JEI6zo112RvYorpuhGZ16hhkoC7HkThoPqromIUwRlMGerraTERNmDmiowHrSbxA"
+                    # task = create_task(self._start_user_data_stream())
+                    # data = await task
+                    address = self.ws_endpoint + '/ws/' + self.websocket_channels['userData']
+                    ret.append((WSAsyncConn(address, self.id, **self.ws_defaults), self.subscribe, self.message_handler, self.authenticate))
+
+        # ----------------------------------------------------------------------------------------
+
+        return ret
+    """
 
     async def _trade(self, msg: dict, timestamp: float):
+        """
+        {
+            "e": "aggTrade",  // Event type
+            "E": 123456789,   // Event time
+            "s": "BNBBTC",    // Symbol
+            "a": 12345,       // Aggregate trade ID
+            "p": "0.001",     // Price
+            "q": "100",       // Quantity
+            "f": 100,         // First trade ID
+            "l": 105,         // Last trade ID
+            "T": 123456785,   // Trade time
+            "m": true,        // Is the buyer the market maker?
+            "M": true         // Ignore
+        }
+        """
         # check ticker frequency
         if 'cache_write_wait' in self.config:
             interval = timestamp - self.trade_timestamp
@@ -118,33 +165,39 @@ class LoopyBinanceDerivatives(Binance, BinanceRestMixin):
             if wait > 0:
                 return
         
-        # """
-        # {
-        #     "e": "aggTrade",  // Event type
-        #     "E": 123456789,   // Event time
-        #     "s": "BNBBTC",    // Symbol
-        #     "a": 12345,       // Aggregate trade ID
-        #     "p": "0.001",     // Price
-        #     "q": "100",       // Quantity
-        #     "f": 100,         // First trade ID
-        #     "l": 105,         // Last trade ID
-        #     "T": 123456785,   // Trade time
-        #     "m": true,        // Is the buyer the market maker?
-        #     "M": true         // Ignore
-        # }
-        # """
-        # t = LoopyTrade(self.id,
-        #                self.exchange_symbol_to_std_symbol(msg['s']),
-        #                SELL if msg['m'] else BUY,
-        #                Decimal(msg['q']),
-        #                Decimal(msg['p']),
-        #                self.timestamp_normalize(msg['E']),
-        #                id=str(msg['a']),   # this string converting is very important to use avro format... @logan
-        #                raw=msg)
-        # await self.callback(TRADES, t, timestamp)
-        await super()._trade(msg, timestamp)
+        self.trade_timestamp = timestamp
+
+        t = Trade(self.id,
+                  self.exchange_symbol_to_std_symbol(msg['s']),
+                  SELL if msg['m'] else BUY,
+                  Decimal(msg['q']),
+                  Decimal(msg['p']),
+                  self.timestamp_normalize(msg['E']),
+                  id=str(msg['a']),
+                  raw=msg)
+        await self.callback(TRADES, t, timestamp)
 
     async def _ticker(self, msg: dict, timestamp: float):
+        """
+        {
+            'u': 382569232,
+            's': 'FETUSDT',
+            'b': '0.36031000',
+            'B': '1500.00000000',
+            'a': '0.36092000',
+            'A': '176.40000000'
+        }
+        """
+        pair = self.exchange_symbol_to_std_symbol(msg['s'])
+        bid = Decimal(msg['b'])
+        ask = Decimal(msg['a'])
+
+        # Binance does not have a timestamp in this update, but the two futures APIs do
+        if 'E' in msg:
+            ts = self.timestamp_normalize(msg['E'])
+        else:
+            ts = timestamp
+
         # check ticker frequency
         if 'cache_write_wait' in self.config:
             interval = timestamp - self.ticker_timestamp
@@ -153,18 +206,10 @@ class LoopyBinanceDerivatives(Binance, BinanceRestMixin):
             if wait > 0:
                 return
         
-        await super()._ticker(msg, timestamp)
+        self.ticker_timestamp = timestamp
 
-    async def _funding(self, msg: dict, timestamp: float):
-        # check ticker frequency
-        if 'cache_write_wait' in self.config:
-            interval = timestamp - self.trade_timestamp
-            wait = self.config.cache_write_wait - interval
-            # LOG.info(f'binance futures ticker wait: {wait}')
-            if wait > 0:
-                return
-
-        await super()._funding(msg, timestamp)
+        t = Ticker(self.id, pair, bid, ask, ts, raw=msg)
+        await self.callback(TICKER, t, timestamp)
 
     # handle another user data stream... @logan
     async def _account_config_update(self, msg: dict, timestamp: float):
@@ -430,7 +475,7 @@ class LoopyBinanceDerivatives(Binance, BinanceRestMixin):
                 raise ValueError('Must specify stop_price on a stop market order')
         if (order_type == MARKET or order_type == STOP_MARKET or order_type == TAKE_PROFIT_MARKET) and price:
             raise ValueError('Cannot specify price on a market order')
-        # if (order_type == TRAILING_STOP_MARKET) and (price or stop_price or time_in_force):
+        # if (order_type == TRAILING_STOP_MARKET) and (price or stop_price or time_force):
         # use stop_price for activation_price
         if (order_type == TRAILING_STOP_MARKET) and (price or time_in_force):
             raise ValueError('Cannot specify price on a trailing stop market order')
@@ -485,7 +530,5 @@ class LoopyBinanceDerivatives(Binance, BinanceRestMixin):
             return round(quantity, quantity_precision)
         else:
             return quantity
-
-
 
 
