@@ -16,7 +16,12 @@ d = Deribit()
 
 
 def teardown_module(module):
-    asyncio.get_event_loop().run_until_complete(d.shutdown())
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+    
+    loop.run_until_complete(d.shutdown())
 
 
 class TestDeribitRest:
@@ -30,7 +35,7 @@ class TestDeribitRest:
     def test_trades(self):
         ret = []
         start = dt.now() - timedelta(days=5)
-        end = dt.now() - timedelta(days=4, hours=19)
+        end = dt.now() - timedelta(days=4, hours=18)
 
         for data in d.trades_sync('BTC-USD-PERP', start=start, end=end):
             ret.extend(data)

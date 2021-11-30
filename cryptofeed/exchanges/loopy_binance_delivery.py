@@ -27,12 +27,12 @@ LOG = logging.getLogger('feedhandler')
 class LoopyBinanceDelivery(LoopyBinanceDerivatives):
     id = BINANCE_DELIVERY
     symbol_endpoint = 'https://dapi.binance.com/dapi/v1/exchangeInfo'
+    websocket_endpoint = 'wss://dstream.binance.com'
     api = 'https://dapi.binance.com/dapi/v1/'
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         # overwrite values previously set by the super class Binance
-        self.ws_endpoint = 'wss://dstream.binance.com'
         self.rest_endpoint = 'https://dapi.binance.com/dapi/v1'
         self.address = self._address()
         self.ws_defaults['compression'] = None

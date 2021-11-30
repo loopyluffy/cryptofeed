@@ -1,12 +1,24 @@
 ## Changelog
 
-### 2.1.1
+### 2.1.2
+ * Feature: Tweak Postgres backend to not store duplicated data for orderbooks.
+ * Feature: Provide sample book schema for Postgres.
+
+### 2.1.1 (2021-11-29)
  * Bugfix: Position data type missing side field.
  * Bugfix: Position data type had unused field 'id'.
  * Bugfix: Fix Bybit OrderInfo msg/data dict.
  * Feature: Add support for sandbox/testnet on BinanceFutures.
  * Feature: New exchange - Crypto.com.
  * Bugfix: Fix MongoDB backend.
+ * Update: reduce code duplication for candle interval normalization.
+ * Update: Simplify code around address specification and selection when using sandbox/testnet.
+ * Bugfix: Phemex rounding errors, incorrect volume.
+ * Feature: Add sandbox/testnet endpoint for Phemex.
+ * Feature: New exchange - Delta.
+ * Update: Tweak tests to remove deprecation warnings.
+ * Bugfix: Fix token usage in Binance.
+ * Update: Change Binance trades to use trade timestamp instead of event timestamp.
 
 ### 2.1.0 (2021-11-14)
  * Bugfix: Update binance user data streams to use cdef types.

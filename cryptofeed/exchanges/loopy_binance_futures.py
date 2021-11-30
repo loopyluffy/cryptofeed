@@ -30,6 +30,8 @@ LOG = logging.getLogger('feedhandler')
 class LoopyBinanceFutures(LoopyBinanceDerivatives):
     id = BINANCE_FUTURES
     symbol_endpoint = 'https://fapi.binance.com/fapi/v1/exchangeInfo'
+    websocket_endpoint = 'wss://fstream.binance.com'
+    sandbox_endpoint = "wss://stream.binancefuture.com"
     api = 'https://fapi.binance.com/fapi/v1/'
 
     def __init__(self, open_interest_interval=1.0, **kwargs):
@@ -39,7 +41,6 @@ class LoopyBinanceFutures(LoopyBinanceDerivatives):
         """
         super().__init__(**kwargs)
         # overwrite values previously set by the super class Binance
-        self.ws_endpoint = 'wss://fstream.binance.com' if not self.sandbox else "wss://stream.binancefuture.com"
         self.rest_endpoint = 'https://fapi.binance.com/fapi/v1' if not self.sandbox else "https://testnet.binancefuture.com/fapi/v1"
         self.address = self._address()
         self.ws_defaults['compression'] = None
