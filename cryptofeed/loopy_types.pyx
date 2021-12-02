@@ -42,10 +42,11 @@ cdef class OrderInfo:
     cdef readonly object price
     cdef readonly object amount
     cdef readonly object remaining
+    cdef readonly str account
     cdef readonly object timestamp
     cdef readonly object raw  # Can be dict or list
 
-    def __init__(self, exchange, symbol, id, side, status, type, price, amount, remaining, timestamp, raw=None):
+    def __init__(self, exchange, symbol, id, side, status, type, price, amount, remaining, timestamp, account=None, raw=None):
         assert isinstance(price, Decimal)
         assert isinstance(amount, Decimal)
         assert remaining is None or isinstance(remaining, Decimal)
@@ -60,37 +61,38 @@ cdef class OrderInfo:
         self.price = price
         self.amount = amount
         self.remaining = remaining
+        self.account = account
         self.timestamp = timestamp
         self.raw = raw
 
     cpdef dict to_dict(self, numeric_type=None, none_to=False):
         if numeric_type is None:
-            data = {'exchange': self.exchange, 'symbol': self.symbol, 'id': self.id, 'side': self.side, 'status': self.status, 'type': self.type, 'price': self.price, 'amount': self.amount, 'remaining': self.remaining, 'timestamp': self.timestamp}
+            data = {'exchange': self.exchange, 'symbol': self.symbol, 'id': self.id, 'side': self.side, 'status': self.status, 'type': self.type, 'price': self.price, 'amount': self.amount, 'remaining': self.remaining, 'account': self.account, 'timestamp': self.timestamp}
         else:
-            data = {'exchange': self.exchange, 'symbol': self.symbol, 'id': self.id, 'side': self.side, 'status': self.status, 'type': self.type, 'price': numeric_type(self.price), 'amount': numeric_type(self.amount), 'remaining': numeric_type(self.remaining), 'timestamp': self.timestamp}
+            data = {'exchange': self.exchange, 'symbol': self.symbol, 'id': self.id, 'side': self.side, 'status': self.status, 'type': self.type, 'price': numeric_type(self.price), 'amount': numeric_type(self.amount), 'remaining': numeric_type(self.remaining), 'account': self.account, 'timestamp': self.timestamp}
         return data if not none_to else convert_none_values(data, none_to)
 
     def __repr__(self):
-        return f'exchange: {self.exchange} symbol: {self.symbol} id: {self.id} side: {self.side} status: {self.status} type: {self.type} price: {self.price} amount: {self.amount} remaining: {self.remaining} timestamp: {self.timestamp}'
+        return f'exchange: {self.exchange} symbol: {self.symbol} id: {self.id} side: {self.side} status: {self.status} type: {self.type} price: {self.price} amount: {self.amount} remaining: {self.remaining} account: {self.account} timestamp: {self.timestamp}'
 
     def __eq__(self, cmp):
-        return self.exchange == cmp.exchange and self.symbol == cmp.symbol and self.id == cmp.id and self.status == cmp.status and self.type == cmp.type and self.price == cmp.price and self.amount == cmp.amount and self.remaining == cmp.remaining and self.timestamp == cmp.timestamp
+        return self.exchange == cmp.exchange and self.symbol == cmp.symbol and self.id == cmp.id and self.status == cmp.status and self.type == cmp.type and self.price == cmp.price and self.amount == cmp.amount and self.remaining == cmp.remaining and self.timestamp == cmp.timestamp and self.account == cmp.account
 
     def __hash__(self):
         return hash(self.__repr__())
 
 
 cdef class LoopyOrderInfo(OrderInfo):
-    cdef readonly str account
+    # cdef readonly str account
     cdef readonly str position
     cdef readonly object condition_price
 
     def __init__(self, exchange, symbol, id, account, side, status, type, price, amount, remaining, timestamp, condition_price=None, position=None, raw=None):
         assert condition_price is None or isinstance(condition_price, Decimal)
 
-        super().__init__(exchange, symbol, id, side, status, type, price, amount, remaining, timestamp, raw)
+        super().__init__(exchange, symbol, id, side, status, type, price, amount, remaining, timestamp, convert_hash(account), raw)
 
-        self.account = convert_hash(account)
+        # self.account = convert_hash(account)
         self.condition_price = condition_price if condition_price is not None else 0
         self.position = position if position is not None else self.account 
 
