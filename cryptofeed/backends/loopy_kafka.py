@@ -40,9 +40,28 @@ class LoopyAvroKafkaCallback(KafkaCallback):
             avro_serializer = AvroSerializer(schema_str=self.schema_str,
                                              schema_registry_client=schema_registry_client)
 
-            producer_conf = {'bootstrap.servers': f'{self.bootstrap}:{self.port}',
-                            'key.serializer': StringSerializer('utf_8'),
-                            'value.serializer': avro_serializer}
+            # producer_conf = {'bootstrap.servers': f'{self.bootstrap}:{self.port}',
+            #                 'key.serializer': StringSerializer('utf_8'),
+            #                 'value.serializer': avro_serializer}
+
+            producer_conf = {
+                'bootstrap.servers': f'{self.bootstrap}:{self.port}',
+                'key.serializer': StringSerializer('utf_8'),
+                'value.serializer': avro_serializer,
+                # "queue.buffering.max.messages": 1000,
+                # "queue.buffering.max.ms": 5000,
+                # "batch.num.messages": 100,
+                # "message.max.bytes": 2000000,
+                # wait messages in queue before send to brokers (batch)
+                # "linger.ms": 5000,
+                # 'retry.backoff.ms':
+                'default.topic.config': {
+                    'request.required.acks': 'all',
+                    "max.in.flight.requests.per.connection": 1,
+                    'message.send.max.retries': 5,
+                    'enable.idempotence': True
+                }
+            }
 
             self.producer = SerializingProducer(producer_conf)
 

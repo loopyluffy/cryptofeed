@@ -67,8 +67,8 @@ class LoopyBinanceDerivatives(Binance, BinanceRestMixin):
 
         add = {}
         add['multiplier'] = {}
-        add['pricePrecision'] = {}
-        add['quantityPrecision'] = {}
+        add['price_precision'] = {}
+        add['quantity_precision'] = {}
         
         for symbol in data['symbols']:
             if symbol.get('status', 'TRADING') != "TRADING":
@@ -88,9 +88,9 @@ class LoopyBinanceDerivatives(Binance, BinanceRestMixin):
             if symbol.get('contractSize'):
                 add['multiplier'][s.normalized] = symbol.get('contractSize') 
             if 'pricePrecision' in symbol:
-                add['pricePrecision'][s.normalized] = symbol.get('pricePrecision') 
+                add['price_precision'][s.normalized] = symbol.get('pricePrecision') 
             if 'quantityPrecision' in symbol: 
-                add['quantityPrecision'][s.normalized] = symbol.get('quantityPrecision') 
+                add['quantity_precision'][s.normalized] = symbol.get('quantityPrecision') 
                 
         info.update(add)
         return base, info
@@ -472,16 +472,21 @@ class LoopyBinanceDerivatives(Binance, BinanceRestMixin):
     # support contract precision
     def get_precision_order_price(self, symbol, price):
         info = self.info()
-        if 'pricePrecision' in info and symbol in info['pricePrecision']:
-            price_precision = info['pricePrecision'][symbol]
-            return round(price, price_precision)
-        else:
-            return price
+        ret = price
+        LOG.info(f"{symbol}: tick size[{info['tick_size'][symbol]}], price precision[{info['price_precision'][symbol]}]")
+        if 'tick_size' in info and symbol in info['tick_size']:
+            tick_size = float(info['tick_size'][symbol])
+            ret = price - price % tick_size + (0.0 if price % tick_size < tick_size / 2 else tick_size)
+        if 'price_precision' in info and symbol in info['price_precision']:
+            price_precision = info['price_precision'][symbol]
+            ret = round(ret, price_precision)
+            
+        return ret
 
     def get_precision_order_quantity(self, symbol, quantity):
         info = self.info()
-        if 'quantityPrecision' in info and symbol in info['quantityPrecision']:
-            quantity_precision = self.info()['quantityPrecision'][symbol]
+        if 'quantity_precision' in info and symbol in info['quantity_precision']:
+            quantity_precision = self.info()['quantity_precision'][symbol]
             return round(quantity, quantity_precision)
         else:
             return quantity

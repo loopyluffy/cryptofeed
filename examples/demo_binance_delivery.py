@@ -31,7 +31,7 @@ import aiohttp
 from cryptofeed import FeedHandler
 from cryptofeed.defines import (BALANCES, BINANCE_FUTURES, BINANCE_DELIVERY,
                                 FUNDING, LIQUIDATIONS, OPEN_INTEREST, ORDER_INFO, POSITIONS, ACCOUNT_CONFIG,
-                                BUY, LIMIT, MARKET, SELL, STOP_MARKET, STOP_LIMIT, TRAILING_STOP_MARKET)
+                                BUY, LIMIT, MARKET, SELL, STOP_MARKET, STOP_LIMIT, TRAILING_STOP_MARKET, GOOD_TIL_CANCELED)
 from cryptofeed.exchanges import Binance, LoopyBinanceDelivery, LoopyBinanceFutures
 
 from cryptofeed.symbols import Symbol, Symbols
@@ -88,26 +88,31 @@ async def main():
     # USER = "jzhJ53lZGnfvwZ0fnSARhZBnFkG12ScT7rPdRFYXGtIEzlgwvzbKsibMpk5njdBN"
     # USER_DATA = 'userData'
 
-    # binance_futures = LoopyBinanceFutures(config=path_to_config)
-    binance_delivery = LoopyBinanceDelivery(config=path_to_config)
-    print(BINANCE_FUTURES)
-    print(futures_info)
+    binance_futures = LoopyBinanceFutures(config=path_to_config)
+    # binance_delivery = LoopyBinanceDelivery(config=path_to_config)
+    # print(BINANCE_FUTURES)
+    # print(futures_info)
     # print(binance_futures.balances_sync())
     # print(binance_futures.orders_sync())
     # print(binance_futures.positions_sync())
-    # try:
-    #     # order = binance_futures.place_order_sync('ETH-USDT-PERP', SELL, LIMIT, 0.004, 5000, time_in_force=GOOD_TIL_CANCELED)
-    #     # order = await asyncio.create_task(binance_futures.place_order(symbol='BTC-USDT-PERP', side=BUY, order_type=STOP_MARKET, amount=0.001, stop_price=50000))
-    #     order = await asyncio.create_task(binance_delivery.place_order(symbol='ETH-USD-PERP', side=SELL, order_type=TRAILING_STOP_MARKET, amount=1, reduce_only=True, callback_rate=0.8))
-    #     # print(binance_futures.orders_sync(symbol='BTC-USDT-PERP'))
-    #     # print(binance_futures.orders_sync(symbol='ETH-USDT-PERP'))
-    #     print(order)
-    #     # print(binance_futures.cancel_order_sync(order['orderId'], symbol='ETH-USDT-PERP'))
-    #     # print(binance_futures.orders_sync(symbol='ETH-USDT-PERP'))
-    # except Exception as e:
-    # # except aiohttp.client_exceptions.ClientResponseError as e:
-    #     # if e.status == 400:
-    #     print(e)
+    try:
+        quantity = binance_futures.get_precision_order_quantity('ADA-USDT-PERP', 7)
+        orig_price = 3.34019002
+        price = binance_futures.get_precision_order_price('ADA-USDT-PERP', orig_price)
+        print(f'ADA-USDT-PERP [orginal price: {orig_price} refined price: {price}')
+        # order = binance_futures.place_order_sync('ADA-USDT-PERP', SELL, LIMIT, price, quantity, time_in_force=GOOD_TIL_CANCELED)
+        order = await asyncio.create_task(binance_futures.place_order(symbol='ADA-USDT-PERP', side=SELL, order_type=LIMIT, price=price, amount=quantity, time_in_force=GOOD_TIL_CANCELED))
+        # order = await asyncio.create_task(binance_futures.place_order(symbol='BTC-USDT-PERP', side=BUY, order_type=STOP_MARKET, amount=0.001, stop_price=50000))
+        # order = await asyncio.create_task(binance_delivery.place_order(symbol='ETH-USD-PERP', side=SELL, order_type=TRAILING_STOP_MARKET, amount=1, reduce_only=True, callback_rate=0.8))
+        # print(binance_futures.orders_sync(symbol='BTC-USDT-PERP'))
+        # print(binance_futures.orders_sync(symbol='ETH-USDT-PERP'))
+        print(order)
+        # print(binance_futures.cancel_order_sync(order['orderId'], symbol='ETH-USDT-PERP'))
+        # print(binance_futures.orders_sync(symbol='ETH-USDT-PERP'))
+    except Exception as e:
+    # except aiohttp.client_exceptions.ClientResponseError as e:
+        # if e.status == 400:
+        print(e)
             # order = await asyncio.create_task(binance_futures.place_order(symbol='BTC-USDT-PERP', side=BUY, order_type=STOP_MARKET, amount=0.001, stop_price=70000))
         # else:
             # print('exception not 400..')
@@ -121,9 +126,9 @@ async def main():
     #     else:
     #         raise TypeError("Please set the GCP_PROJECT environment variable") from e
 
-    binance_delivery = LoopyBinanceDelivery(config=path_to_config)
-    print(BINANCE_DELIVERY)
-    print(delivery_info)
+    # binance_delivery = LoopyBinanceDelivery(config=path_to_config)
+    # print(BINANCE_DELIVERY)
+    # print(delivery_info)
     # print(Symbols.get(BINANCE_DELIVERY))
 
     # print(binance_delivery.balances_sync())
