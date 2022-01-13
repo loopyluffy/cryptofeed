@@ -362,8 +362,8 @@ class LoopyBinanceDerivatives(Binance, BinanceRestMixin):
             # if never partially filled, price is original price... @logan
             price=Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else Decimal(msg['o']['p']),
             # price=Decimal(msg['o']['ap']) if not Decimal.is_zero(Decimal(msg['o']['ap'])) else None,
-            condition_price=Decimal(msg['o']['sp']) if any(x in msg['o']['o'].lower() for x in ['stop','take_profit']) else Decimal(msg['o']['AP']) if msg['o']['o'].lower() == 'trailing_stop_market' else Decimal(0),
-            # condition_price=Decimal(msg['o']['sp']) if msg['o']['o'].lower() == 'stop_market' or msg['o']['o'].lower() == 'take_profit_market' or msg['o']['o'].lower() == 'stop' or msg['o']['o'].lower() == 'take_profit' else Decimal(msg['o']['AP']) if msg['o']['o'].lower() == 'trailing_stop_market' else Decimal(0),
+            # condition_price=Decimal(msg['o']['sp']) if any(x in msg['o']['o'].lower() for x in ['stop','take_profit']) else Decimal(msg['o']['AP']) if msg['o']['o'].lower() == 'trailing_stop_market' else Decimal(0),
+            condition_price=Decimal(msg['o']['sp']) if msg['o']['o'].lower() == 'stop_market' or msg['o']['o'].lower() == 'take_profit_market' or msg['o']['o'].lower() == 'stop' or msg['o']['o'].lower() == 'take_profit' else Decimal(msg['o']['AP']) if msg['o']['o'].lower() == 'trailing_stop_market' else Decimal(0),
             amount=Decimal(msg['o']['q']),
             remaining=Decimal(msg['o']['q']) - Decimal(msg['o']['z']),
             # timestamp=self.timestamp_normalize(msg['E'])
