@@ -10,7 +10,7 @@ import logging
 from typing import List, Tuple, Callable, Dict
 from yapic import json
 
-from cryptofeed.connection import AsyncConnection, HTTPPoll
+from cryptofeed.connection import AsyncConnection, HTTPPoll, RestEndpoint, Routes, WebsocketEndpoint
 from cryptofeed.defines import (
     BALANCES, BINANCE_FUTURES, 
     # PERPETUAL, FUTURES, SPOT, 
@@ -29,10 +29,10 @@ LOG = logging.getLogger('feedhandler')
 
 class LoopyBinanceFutures(LoopyBinanceDerivatives):
     id = BINANCE_FUTURES
-    symbol_endpoint = 'https://fapi.binance.com/fapi/v1/exchangeInfo'
-    websocket_endpoint = 'wss://fstream.binance.com'
-    sandbox_endpoint = "wss://stream.binancefuture.com"
+
     api = 'https://fapi.binance.com/fapi/v1/'
+    websocket_endpoints = [WebsocketEndpoint('wss://fstream.binance.com', sandbox='wss://stream.binancefuture.com', options={'compression': None})]
+    rest_endpoints = [RestEndpoint('https://fapi.binance.com', sandbox='https://testnet.binancefuture.com', routes=Routes('/fapi/v1/exchangeInfo', l2book='/fapi/v1/depth?symbol={}&limit={}', authentication='/fapi/v1/listenKey', open_interest='/fapi/v1//openInterest?symbol={}'))]
 
     def __init__(self, open_interest_interval=1.0, **kwargs):
         """
@@ -40,10 +40,6 @@ class LoopyBinanceFutures(LoopyBinanceDerivatives):
             time in seconds between open_interest polls
         """
         super().__init__(**kwargs)
-        # overwrite values previously set by the super class Binance
-        self.rest_endpoint = 'https://fapi.binance.com/fapi/v1' if not self.sandbox else "https://testnet.binancefuture.com/fapi/v1"
-        self.address = self._address()
-        self.ws_defaults['compression'] = None
 
         self.open_interest_interval = open_interest_interval
 
@@ -68,13 +64,10 @@ class LoopyBinanceFutures(LoopyBinanceDerivatives):
             await self.callback(OPEN_INTEREST, o, timestamp)
             self._open_interest_cache[pair] = oi
 
-    def connect(self) -> List[Tuple[AsyncConnection, Callable[[None], None], Callable[[str, float], None]]]:
+    def _connect_rest(self):
         ret = []
-        if self.address:
-            ret = super().connect()
-        PollCls = HTTPPoll
         for chan in set(self.subscription):
             if chan == 'open_interest':
-                addrs = [f"{self.rest_endpoint}/openInterest?symbol={pair}" for pair in self.subscription[chan]]
-                ret.append((PollCls(addrs, self.id, delay=60.0, sleep=self.open_interest_interval, proxy=self.http_proxy), self.subscribe, self.message_handler, self.authenticate))
+                addrs = [self.rest_endpoints[0].route('open_interest', sandbox=self.sandbox).format(pair) for pair in self.subscription[chan]]
+                ret.append((HTTPPoll(addrs, self.id, delay=60.0, sleep=self.open_interest_interval, proxy=self.http_proxy), self.subscribe, self.message_handler, self.authenticate))
         return ret

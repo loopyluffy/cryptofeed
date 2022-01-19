@@ -6,7 +6,7 @@ associated with this software.
 '''
 import logging
 
-from cryptofeed.connection import AsyncConnection #, HTTPPoll
+from cryptofeed.connection import RestEndpoint, Routes, WebsocketEndpoint
 from cryptofeed.defines import (
     BALANCES, BINANCE_DELIVERY
     # PERPETUAL, FUTURES, SPOT, 
@@ -26,13 +26,10 @@ LOG = logging.getLogger('feedhandler')
 
 class LoopyBinanceDelivery(LoopyBinanceDerivatives):
     id = BINANCE_DELIVERY
-    symbol_endpoint = 'https://dapi.binance.com/dapi/v1/exchangeInfo'
-    websocket_endpoint = 'wss://dstream.binance.com'
-    api = 'https://dapi.binance.com/dapi/v1/'
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        # overwrite values previously set by the super class Binance
-        self.rest_endpoint = 'https://dapi.binance.com/dapi/v1'
-        self.address = self._address()
-        self.ws_defaults['compression'] = None
+    api = 'https://dapi.binance.com/dapi/v1/'
+    websocket_endpoints = [WebsocketEndpoint('wss://dstream.binance.com', options={'compression': None})]
+    rest_endpoints = [RestEndpoint('https://dapi.binance.com', routes=Routes('/dapi/v1/exchangeInfo', l2book='/dapi/v1/depth?symbol={}&limit={}', authentication='/dapi/v1/listenKey'))]
+
+
+   
